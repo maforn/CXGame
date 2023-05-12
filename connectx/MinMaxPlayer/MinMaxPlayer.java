@@ -67,6 +67,7 @@ public class MinMaxPlayer implements CXPlayer {
 		Integer[] L = B.getAvailableColumns();
 		int save    = L[rand.nextInt(L.length)]; // Save a random column 
 
+		// minmaxing code here for each column in the avaible ones
 		try {
 			for (int i : L) {
 
@@ -85,9 +86,10 @@ public class MinMaxPlayer implements CXPlayer {
 
 	public int minimax(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException {
 		// Check if the game is over or if the depth limit has been reached
-		if (B.gameState() == yourWin || depth == 0) {
+		if (B.gameState() != CXGameState.OPEN || depth == 0) {
 			return board.evaluate(player);
 		}
+
 
 		int bestScore;
 
