@@ -42,7 +42,7 @@ public class MinMaxPlayer implements CXPlayer {
 	private long START;
 
 	/* Default empty constructor */
-	public MFPlayer() {
+	public MinMaxPlayer() {
 	}
 
 	public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
@@ -65,13 +65,29 @@ public class MinMaxPlayer implements CXPlayer {
 		START = System.currentTimeMillis(); // Save starting time
 
 		Integer[] L = B.getAvailableColumns();
-		int save    = L[rand.nextInt(L.length)]; // Save a random column 
+		int save    = L[rand.nextInt(L.length)]; // Save a random column
 
+		int bestValue = Integer.MIN_VALUE;
+		int alpha = Integer.MIN_VALUE;
+		int beta = Integer.MAX_VALUE;
+		int depth = 10;
+		int player = B.currentPlayer();
 		// minmaxing code here for each column in the avaible ones
 		try {
-			for (int i : L) {
-
+			for (int col : L) { // for each column
+				B.markColumn(col);
+				int value = minimax(B, B.getAvailableColumns(), depth, player, alpha, beta);
+				B.unmarkColumn();
+				if (value > bestValue) {
+					bestValue = value;
+					save = col;
+				}
+				alpha = Math.max(alpha, value);
+				if (beta <= alpha) {
+					break;
+				}
 			}
+			return save;
 		} catch (TimeoutException e) {
 			System.err.println("Timeout! Random column selected");
 			return save;
@@ -86,21 +102,22 @@ public class MinMaxPlayer implements CXPlayer {
 
 	public int minimax(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException {
 		// Check if the game is over or if the depth limit has been reached
-		if (B.gameState() != CXGameState.OPEN || depth == 0) {
-			return board.evaluate(player);
+		if (board.gameState() != CXGameState.OPEN || depth == 0) {
+			if (board.gameState() == CXGameState.DRAW || depth == 0) return 0; // eval: if it's a draw return 0
+			return (board.gameState() == myWin) ? 1 : -1; // if it's my win return 1, else return -1
 		}
 
 
 		int bestScore;
 
 		// If it's the maximizing player's turn, initialize the best score to the smallest possible value
-		if (board.getCurrentPlayer() == player) {
-			bestScore = Intzeger.MIN_VALUE;
+		if (board.currentPlayer() == player) {
+			bestScore = Integer.MIN_VALUE;
 
 			// Iterate over all possible moves and recursively evaluate each one
 			for (int i : L) {
 				board.markColumn(i);
-				int score = minimax(board, board.getAvaibleColumns(), depth - 1, player, alpha, beta);
+				int score = minimax(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
 				board.unmarkColumn();
 				bestScore = Math.max(bestScore, score);
 				alpha = Math.max(alpha, score);
@@ -116,7 +133,7 @@ public class MinMaxPlayer implements CXPlayer {
 			// Iterate over all possible moves and recursively evaluate each one
 			for (int i : L) {
 				board.markColumn(i);
-				int score = minimax(board, board.getAvaibleColumns(),depth - 1, player, alpha, beta);
+				int score = minimax(board, board.getAvailableColumns(),depth - 1, player, alpha, beta);
 				board.unmarkColumn();
 				bestScore = Math.min(bestScore, score);
 				beta = Math.min(beta, score);
