@@ -22,10 +22,14 @@ import connectx.CXPlayer;
 import connectx.CXBoard;
 import connectx.CXGameState;
 import connectx.CXCell;
+import connectx.CXCellState;
 import java.util.TreeSet;
 import java.util.Random;
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 /**
  * Software player only a bit smarter than random.
@@ -41,6 +45,11 @@ public class MinMaxPlayer implements CXPlayer {
 	private int  TIMEOUT;
 	private long START;
 
+	int M; //rows
+	int N; //cols
+	int K;
+	boolean first;
+
 	/* Default empty constructor */
 	public MinMaxPlayer() {
 	}
@@ -51,6 +60,56 @@ public class MinMaxPlayer implements CXPlayer {
 		myWin   = first ? CXGameState.WINP1 : CXGameState.WINP2;
 		yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
 		TIMEOUT = timeout_in_secs;
+
+		this.M = M;
+		this.N = N;
+		this.K = K;
+
+		this.first = first;
+	}
+
+	// order columns based on height
+	protected Integer[] orderColumns(CXBoard B, Integer[] L) {
+		HashMap<Integer, Integer> unsortMap = new HashMap<>(); // create a key value pair for columns:height
+		for (int i : L) { // for each free column
+			int n = 0; // count not empty cells
+			for (int e = 0; e < this.M; e++) {
+				if (B.cellState(i, e) != CXCellState.FREE) n++;
+			}
+			unsortMap.put(i, n); // put in the map column:occupied cells
+		}
+		// sort by ascending occupied cells, so we first have the emptier columns
+		return new ArrayList<Integer>(sortHashMapByValues(unsortMap).keySet()).toArray(Integer[]::new);
+	}
+
+	public LinkedHashMap<Integer, Integer> sortHashMapByValues(
+			HashMap<Integer, Integer> passedMap) {
+		List<Integer> mapKeys = new ArrayList<>(passedMap.keySet());
+		List<Integer> mapValues = new ArrayList<>(passedMap.values());
+		Collections.sort(mapValues);
+		Collections.sort(mapKeys);
+
+		LinkedHashMap<Integer, Integer> sortedMap =
+				new LinkedHashMap<>();
+
+		Iterator<Integer> valueIt = mapValues.iterator();
+		while (valueIt.hasNext()) {
+			Integer val = valueIt.next();
+			Iterator<Integer> keyIt = mapKeys.iterator();
+
+			while (keyIt.hasNext()) {
+				Integer key = keyIt.next();
+                Integer comp1 = passedMap.get(key);
+				Integer comp2 = val;
+
+				if (comp1.equals(comp2)) {
+					keyIt.remove();
+					sortedMap.put(key, val);
+					break;
+				}
+			}
+		}
+		return sortedMap;
 	}
 
 	/**
@@ -67,10 +126,14 @@ public class MinMaxPlayer implements CXPlayer {
 		Integer[] L = B.getAvailableColumns();
 		int save    = L[rand.nextInt(L.length)]; // Save a random column
 
+		L = orderColumns(B, L);
+
+
 		int bestValue = Integer.MIN_VALUE; // -1?
 		int alpha = Integer.MIN_VALUE; // -1?
 		int beta = Integer.MAX_VALUE; // 1?
-		int depth = 10;
+
+		int depth = 12;
 		int player = B.currentPlayer();
 		// minmaxing code here for each column in the avaible ones
 		try {
@@ -101,9 +164,11 @@ public class MinMaxPlayer implements CXPlayer {
 	}
 
 	public int minimax(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException {
+		// check if the time is enough
+		checktime();
 		// Check if the game is over or if the depth limit has been reached
 		if (board.gameState() != CXGameState.OPEN || depth == 0) {
-			if (board.gameState() == CXGameState.DRAW || depth == 0) return 0; // eval: if it's a draw return 0
+			if (board.gameState() == CXGameState.DRAW || (depth == 0 && board.gameState() == CXGameState.OPEN)) return 0; // eval: if it's a draw return 0
 			return (board.gameState() == myWin) ? 1 : -1; // if it's my win return 1, else return -1
 		}
 
