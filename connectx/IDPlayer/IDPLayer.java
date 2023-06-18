@@ -27,6 +27,10 @@ import java.util.TreeSet;
 import java.util.Random;
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
+import java.util.HashMap;
+
+import java.util.Arrays;
+import connectx.HashEntry.HashEntry;
 
 /**
  * Software player only a bit smarter than random.
@@ -36,6 +40,9 @@ import java.util.concurrent.TimeoutException;
  * </p>
  */
 public class IDPlayer implements CXPlayer {
+
+    HashMap<Integer, HashEntry> transTable = new HashMap<>(1000);
+
     private Random rand;
     private CXGameState myWin;
     private CXGameState yourWin;
@@ -95,28 +102,46 @@ public class IDPlayer implements CXPlayer {
 
         while(depth < freeCels && !pruning){
             try{
-                for(int d = 0; d < depth; d++){
+                for(int d = 1; d <= depth && !pruning; d++){
+
+                    int hash = getHash(B.getMarkedCells());
+                    HashEntry saved = checkTransTable(hash, d);
+                    if(saved != null){
+                        bestValue = saved.eval;
+                        bestCol = saved.bestCol;
+                        //System.err.println("Depth " + d + " Saved val: " + bestValue + " col: " + bestCol);
+                        continue;
+                    }
+
+
                     for (int col : L) { // for each column
+
+                        //System.err.println("First it col " + col + " Depth: " + depth);
+
                         B.markColumn(col);
-                        int value = alphaBeta(B, B.getAvailableColumns(), d, player, alpha, beta);
+                        int value = alphaBeta(B, B.getAvailableColumns(), d-1, player, -1, 1);
                         B.unmarkColumn();
 
-                        //System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
+                        //System.err.println("Col " + col + " val " + value + "\n");
 
-                        if (value >= bestValue) {
+                        //System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
+                        if (value > bestValue) {
                             bestValue = value;
                             bestCol = col;
                         }
+                        //TODO: heuristic for best choice among equal evals
+                        else if(value == bestValue && Math.abs(col - N/2) < Math.abs(bestCol - N/2))
+                            bestCol = col;
 
                         //System.err.println("Best Col: " + bestCol + " Best Val: " + bestValue);
-
-                        alpha = Math.max(alpha, value);
+                        alpha = Math.max(alpha, bestValue);
                         if (beta <= alpha) {
                             //System.err.println("Pruning!");
                             pruning = true;
                             break;
                         }
                     }
+                    updateTransTable(hash, new HashEntry(bestValue, d, bestCol));
                 }
                 depth += 1;
             }
@@ -126,22 +151,42 @@ public class IDPlayer implements CXPlayer {
             }
         }
 
-        //System.err.println(depth);
+        //transTable.forEach((key, value) -> System.out.println("Rank : " + key + "\t\t Name : " + value.depth + " " + value.eval));
+
+        //System.err.println("Max depth: " + depth);
+        //System.err.println(transTable.elements());
+
+        //System.err.println("End ID");
+        //System.err.println("Best col: " + bestCol + " Best val: " + bestValue);
         return bestCol;
     }
 
     private int alphaBeta(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException{
 
-        int bestScore;
+        int bestScore, bestCol = L[rand.nextInt(L.length)], hash;
+        HashEntry saved = null;
 
         if(board.gameState() != CXGameState.OPEN){
             if(board.gameState() == CXGameState.DRAW)
-                bestScore = 0;
+                return 0;
             else
-                bestScore = (board.gameState() == myWin) ? 1 : -1;
+                return ((board.gameState() == myWin) ? 1 : -1);
         }
         else if(depth == 0)
-            bestScore = heuristic(board);
+            return heuristic(board);
+
+        else{
+            checktime();
+            hash = getHash(board.getMarkedCells());
+            saved = checkTransTable(hash, depth);
+        }
+
+        //System.err.println("Start AB");
+
+        if(saved != null)
+            return saved.eval;
+
+
         // If it's the maximizing player's turn, initialize the best score to the smallest possible value
         else if (board.currentPlayer() == player) {
             bestScore = -1;
@@ -151,11 +196,18 @@ public class IDPlayer implements CXPlayer {
                 board.markColumn(i);
                 int score = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
                 board.unmarkColumn();
-                bestScore = Math.max(bestScore, score);
+                if(score >= bestScore){
+                    bestScore = score;
+                    bestCol = i;
+                }
                 alpha = Math.max(alpha, bestScore);
                 if (beta <= alpha)
                     break; // Beta cutoff
+
+                //System.err.println("\tCol" + i + " val " + bestScore + "\n");
+                //System.err.println("Max col " + i + " Depth: " + depth);
             }
+            updateTransTable(hash, new HashEntry(bestScore, depth, bestCol));
         }
         // If it's the minimizing player's turn, initialize the best score to the largest possible value
         else {
@@ -166,13 +218,45 @@ public class IDPlayer implements CXPlayer {
                 board.markColumn(i);
                 int score = alphaBeta(board, board.getAvailableColumns(),depth - 1, player, alpha, beta);
                 board.unmarkColumn();
-                bestScore = Math.min(bestScore, score);
+                if(score <= bestScore){
+                    bestScore = score;
+                    bestCol = i;
+                }
                 beta = Math.min(beta, bestScore);
                 if (beta <= alpha)
                     break; // Alpha cutoff
+
+                //System.err.println("\tCol" + i + " val " + bestScore + "\n");
+                //System.err.println("Min col " + i + " Depth: " + depth);
             }
+            updateTransTable(hash, new HashEntry(bestScore, depth, bestCol));
         }
+        //System.err.println("End AB");
         return bestScore;
+    }
+
+    int getHash(CXCell[] MC){
+        int a[] = new int[MC.length];
+        for(int i = 0; i < MC.length; i++){
+            int pos = MC[i].i * M + MC[i].j + 1;
+            a[i] = (MC[i].state == CXCellState.P1) ? pos : (-pos);
+        }
+        Arrays.sort(a);
+        return Arrays.hashCode(a);
+    }
+
+    HashEntry checkTransTable(int hash, int depth){
+        HashEntry saved = transTable.get(hash);
+        if(saved != null && saved.depth >= depth)
+            return saved;
+        else
+            return null;
+    }
+
+    void updateTransTable(int hash, HashEntry newRes){
+        HashEntry saved = transTable.get(hash);
+        if(saved == null || saved.depth <= newRes.depth)
+            transTable.put(hash, newRes);
     }
 
     private int heuristic(CXBoard board){
