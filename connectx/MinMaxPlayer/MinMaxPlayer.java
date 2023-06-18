@@ -115,11 +115,17 @@ public class MinMaxPlayer implements CXPlayer {
 		Integer[] L = B.getAvailableColumns();
 		int save    = L[rand.nextInt(L.length)]; // Save a random column
 
+<<<<<<< HEAD
 		L = orderColumns(B, L);
 
 		int bestValue = Integer.MIN_VALUE;
 		int alpha = Integer.MIN_VALUE;
 		int beta = Integer.MAX_VALUE;
+=======
+		int bestValue = Integer.MIN_VALUE; // -1?
+		int alpha = Integer.MIN_VALUE; // -1?
+		int beta = Integer.MAX_VALUE; // 1?
+>>>>>>> c3c05dfbe2863a60c4a4e81e12cc1e84c8b99662
 		int depth = 10;
 		int player = B.currentPlayer();
 		// minmaxing code here for each column in the avaible ones
@@ -171,7 +177,7 @@ public class MinMaxPlayer implements CXPlayer {
 				int score = minimax(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
 				board.unmarkColumn();
 				bestScore = Math.max(bestScore, score);
-				alpha = Math.max(alpha, score);
+				alpha = Math.max(alpha, score); // bestScore??
 				if (beta <= alpha) {
 					break; // Beta cutoff
 				}
