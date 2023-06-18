@@ -45,6 +45,11 @@ public class MinMaxPlayer implements CXPlayer {
 	private int  TIMEOUT;
 	private long START;
 
+	int M; //rows
+	int N; //cols
+	int K;
+	boolean first;
+
 	/* Default empty constructor */
 	public MinMaxPlayer() {
 	}
@@ -55,6 +60,12 @@ public class MinMaxPlayer implements CXPlayer {
 		myWin   = first ? CXGameState.WINP1 : CXGameState.WINP2;
 		yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
 		TIMEOUT = timeout_in_secs;
+
+		this.M = M;
+		this.N = N;
+		this.K = K;
+
+		this.first = first;
 	}
 
 	// order columns based on height
@@ -62,7 +73,7 @@ public class MinMaxPlayer implements CXPlayer {
 		HashMap<Integer, Integer> unsortMap = new HashMap<>(); // create a key value pair for columns:height
 		for (int i : L) { // for each free column
 			int n = 0; // count not empty cells
-			for (int e = 0; e < B.N; e++) {
+			for (int e = 0; e < this.M; e++) {
 				if (B.cellState(i, e) != CXCellState.FREE) n++;
 			}
 			unsortMap.put(i, n); // put in the map column:occupied cells
@@ -122,7 +133,7 @@ public class MinMaxPlayer implements CXPlayer {
 		int alpha = Integer.MIN_VALUE; // -1?
 		int beta = Integer.MAX_VALUE; // 1?
 
-		int depth = 10;
+		int depth = 12;
 		int player = B.currentPlayer();
 		// minmaxing code here for each column in the avaible ones
 		try {
@@ -153,6 +164,7 @@ public class MinMaxPlayer implements CXPlayer {
 	}
 
 	public int minimax(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException {
+		// check if the time is enough
 		checktime();
 		// Check if the game is over or if the depth limit has been reached
 		if (board.gameState() != CXGameState.OPEN || depth == 0) {
