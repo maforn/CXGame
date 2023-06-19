@@ -27,7 +27,7 @@ import java.util.TreeSet;
 import java.util.Random;
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 import java.util.Arrays;
 import connectx.HashEntry.HashEntry;
@@ -41,7 +41,8 @@ import connectx.HashEntry.HashEntry;
  */
 public class IDPlayer implements CXPlayer {
 
-    HashMap<Integer, HashEntry> transTable = new HashMap<>(1000);
+    LinkedHashMap<Integer, HashEntry> transTable;
+    int transTableCapacity;
 
     private Random rand;
     private CXGameState myWin;
@@ -70,6 +71,9 @@ public class IDPlayer implements CXPlayer {
         this.K = K;
 
         this.first = first;
+
+        transTableCapacity = 500;
+        transTable = new LinkedHashMap<>(transTableCapacity);
     }
 
     /**
@@ -113,6 +117,7 @@ public class IDPlayer implements CXPlayer {
                         continue;
                     }
 
+                    //System.err.println("Calculating depth " + d);
 
                     for (int col : L) { // for each column
 
@@ -255,8 +260,13 @@ public class IDPlayer implements CXPlayer {
 
     void updateTransTable(int hash, HashEntry newRes){
         HashEntry saved = transTable.get(hash);
-        if(saved == null || saved.depth <= newRes.depth)
+        if(saved == null || saved.depth <= newRes.depth){
+            if (transTable.size() == transTableCapacity) {
+                int firstKey = transTable.keySet().iterator().next();
+                transTable.remove(firstKey);
+            }
             transTable.put(hash, newRes);
+        }
     }
 
     private int heuristic(CXBoard board){
