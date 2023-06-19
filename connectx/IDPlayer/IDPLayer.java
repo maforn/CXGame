@@ -131,23 +131,27 @@ public class IDPlayer implements CXPlayer {
 
                         //System.err.println("Col " + col + " val " + value + "\n");
 
-                        if(d == 2)
-                            System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
+                        //if(d == 2)
+                        //    System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
                         if (value >= bestValue) {
-                            System.err.println("Updated to col " + col + " and val " + value);
-                            bestValue = value;
-                            bestCol = col;
+                            //System.err.println("Updated to col " + col + " and val " + value);
+                            if(value > bestValue){
+                                bestValue = value;
+                                bestCol = col;
+                            }
+                            if(value == bestValue && Math.abs(col - N/2) < Math.abs(bestCol - N/2))
+                                bestCol = col;
                         }
 
                         //System.err.println("Best Col: " + bestCol + " Best Val: " + bestValue);
                         alpha = Math.max(alpha, bestValue);
-                        /*
+
                         if (beta <= alpha) {
                             //System.err.println("Pruning!");
                             pruning = true;
                             break;
                         }
-                         */
+
                     }
                     updateTransTable(hash, new HashEntry(bestValue, d, bestCol));
                 }
@@ -209,11 +213,11 @@ public class IDPlayer implements CXPlayer {
                     bestCol = i;
                 }
                 alpha = Math.max(alpha, bestScore);
-                /*
+
                 if (beta <= alpha)
                     break; // Beta cutoff
 
-                 */
+
 
                 //System.err.println("\tCol" + i + " val " + bestScore + "\n");
                 //System.err.println("Max col " + i + " Depth: " + depth);
@@ -234,11 +238,11 @@ public class IDPlayer implements CXPlayer {
                     bestCol = i;
                 }
                 beta = Math.min(beta, bestScore);
-                /*
+
                 if (beta <= alpha)
                     break; // Alpha cutoff
 
-                 */
+
 
                 //System.err.println("\tCol" + i + " val " + bestScore + "\n");
                 //System.err.println("Min col " + i + " Depth: " + depth);
