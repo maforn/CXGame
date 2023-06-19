@@ -85,6 +85,7 @@ public class IDPlayer implements CXPlayer {
      * </p>
      */
     public int selectColumn(CXBoard B) {
+
         START = System.currentTimeMillis(); // Save starting time
 
         int alpha = -1;
@@ -106,6 +107,7 @@ public class IDPlayer implements CXPlayer {
 
         while(depth < freeCels && !pruning){
             try{
+                //System.err.println("Transtable size: " + transTable.size());
                 for(int d = 1; d <= depth && !pruning; d++){
 
                     int hash = getHash(B.getMarkedCells());
@@ -129,22 +131,23 @@ public class IDPlayer implements CXPlayer {
 
                         //System.err.println("Col " + col + " val " + value + "\n");
 
-                        //System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
-                        if (value > bestValue) {
+                        if(d == 2)
+                            System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
+                        if (value >= bestValue) {
+                            System.err.println("Updated to col " + col + " and val " + value);
                             bestValue = value;
                             bestCol = col;
                         }
-                        //TODO: heuristic for best choice among equal evals
-                        else if(value == bestValue && Math.abs(col - N/2) < Math.abs(bestCol - N/2))
-                            bestCol = col;
 
                         //System.err.println("Best Col: " + bestCol + " Best Val: " + bestValue);
                         alpha = Math.max(alpha, bestValue);
+                        /*
                         if (beta <= alpha) {
                             //System.err.println("Pruning!");
                             pruning = true;
                             break;
                         }
+                         */
                     }
                     updateTransTable(hash, new HashEntry(bestValue, d, bestCol));
                 }
@@ -206,8 +209,11 @@ public class IDPlayer implements CXPlayer {
                     bestCol = i;
                 }
                 alpha = Math.max(alpha, bestScore);
+                /*
                 if (beta <= alpha)
                     break; // Beta cutoff
+
+                 */
 
                 //System.err.println("\tCol" + i + " val " + bestScore + "\n");
                 //System.err.println("Max col " + i + " Depth: " + depth);
@@ -228,8 +234,11 @@ public class IDPlayer implements CXPlayer {
                     bestCol = i;
                 }
                 beta = Math.min(beta, bestScore);
+                /*
                 if (beta <= alpha)
                     break; // Alpha cutoff
+
+                 */
 
                 //System.err.println("\tCol" + i + " val " + bestScore + "\n");
                 //System.err.println("Min col " + i + " Depth: " + depth);
@@ -272,27 +281,6 @@ public class IDPlayer implements CXPlayer {
     private int heuristic(CXBoard board){
         return 0;
     }
-
-    // TODO
-    /*
-    private double heuristic(CXBoard board){
-        double plus = 0;
-        double minus = 0;
-        double v = 0;
-
-        CXCell[] usedCells = board.getMarkedCells();
-        CXCellState S = first ? CXCellState.P1 : CXCellState.P2;
-
-        for(CXCell c : usedCells){
-            v = M/2 - Math.abs(M/2 - c.i) + N/2 - Math.abs(N/2 - c.j);
-            if(c.state == S)
-                plus += v;
-            else
-                minus += v;
-        }
-        return (plus-minus) / plus;
-    }
-    */
 
     private void checktime() throws TimeoutException {
         if ((System.currentTimeMillis() - START) / 1000.0 >= TIMEOUT * (99.0 / 100.0))

@@ -141,7 +141,7 @@ public class MinMaxPlayer implements CXPlayer {
 				B.markColumn(col);
 				int value = minimax(B, B.getAvailableColumns(), depth, player, alpha, beta);
 				B.unmarkColumn();
-				if (value > bestValue) {
+				if (value >= bestValue) {
 					bestValue = value;
 					save = col;
 				}
