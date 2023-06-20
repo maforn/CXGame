@@ -23,6 +23,7 @@ import connectx.CXBoard;
 import connectx.CXGameState;
 import connectx.CXCell;
 import connectx.CXCellState;
+
 import java.util.TreeSet;
 import java.util.Random;
 import java.util.Arrays;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.LinkedHashMap;
 
 import java.util.Arrays;
+
 import connectx.HashEntry.HashEntry;
 
 /**
@@ -47,7 +49,7 @@ public class IDPlayer implements CXPlayer {
     private Random rand;
     private CXGameState myWin;
     private CXGameState yourWin;
-    private int  TIMEOUT;
+    private int TIMEOUT;
     private long START;
 
     int M; //rows
@@ -61,8 +63,8 @@ public class IDPlayer implements CXPlayer {
 
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
         // New random seed for each game
-        rand    = new Random(System.currentTimeMillis());
-        myWin   = first ? CXGameState.WINP1 : CXGameState.WINP2;
+        rand = new Random(System.currentTimeMillis());
+        myWin = first ? CXGameState.WINP1 : CXGameState.WINP2;
         yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
         TIMEOUT = timeout_in_secs;
 
@@ -95,7 +97,7 @@ public class IDPlayer implements CXPlayer {
         return ID(B, player, alpha, beta);
     }
 
-    private int ID(CXBoard B, int player, int alpha, int beta){
+    private int ID(CXBoard B, int player, int alpha, int beta) {
 
         Integer[] L = B.getAvailableColumns();
         int bestValue = Integer.MIN_VALUE;
@@ -105,14 +107,14 @@ public class IDPlayer implements CXPlayer {
         int depth = 0;
         boolean pruning = false;
 
-        while(depth < freeCels && !pruning){
-            try{
+        while (depth < freeCels && !pruning) {
+            try {
                 //System.err.println("Transtable size: " + transTable.size());
-                for(int d = 1; d <= depth && !pruning; d++){
+                for (int d = 1; d <= depth && !pruning; d++) {
 
                     int hash = getHash(B.getMarkedCells());
                     HashEntry saved = checkTransTable(hash, d);
-                    if(saved != null){
+                    if (saved != null) {
                         bestValue = saved.eval;
                         bestCol = saved.bestCol;
                         //System.err.println("Depth " + d + " Saved val: " + bestValue + " col: " + bestCol);
@@ -126,7 +128,7 @@ public class IDPlayer implements CXPlayer {
                         //System.err.println("First it col " + col + " Depth: " + depth);
 
                         B.markColumn(col);
-                        int value = alphaBeta(B, B.getAvailableColumns(), d-1, player, -1, 1);
+                        int value = alphaBeta(B, B.getAvailableColumns(), d - 1, player, Integer.MIN_VALUE, Integer.MAX_VALUE);
                         B.unmarkColumn();
 
                         //System.err.println("Col " + col + " val " + value + "\n");
@@ -135,12 +137,9 @@ public class IDPlayer implements CXPlayer {
                         //    System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
                         if (value >= bestValue) {
                             //System.err.println("Updated to col " + col + " and val " + value);
-                            if(value > bestValue){
-                                bestValue = value;
-                                bestCol = col;
-                            }
-                            if(value == bestValue && Math.abs(col - N/2) < Math.abs(bestCol - N/2))
-                                bestCol = col;
+                            bestValue = value;
+                            bestCol = col;
+
                         }
 
                         //System.err.println("Best Col: " + bestCol + " Best Val: " + bestValue);
@@ -156,8 +155,7 @@ public class IDPlayer implements CXPlayer {
                     updateTransTable(hash, new HashEntry(bestValue, d, bestCol));
                 }
                 depth += 1;
-            }
-            catch (TimeoutException e) {
+            } catch (TimeoutException e) {
                 //System.err.println("Timeout! Best column selected");
                 break;
             }
@@ -173,21 +171,20 @@ public class IDPlayer implements CXPlayer {
         return bestCol;
     }
 
-    private int alphaBeta(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException{
+    private int alphaBeta(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException {
 
         int bestScore, bestCol = L[rand.nextInt(L.length)], hash;
         HashEntry saved = null;
 
-        if(board.gameState() != CXGameState.OPEN){
-            if(board.gameState() == CXGameState.DRAW)
+        if (board.gameState() != CXGameState.OPEN) {
+            if (board.gameState() == CXGameState.DRAW)
                 return 0;
             else
                 return ((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE);
-        }
-        else if(depth == 0)
+        } else if (depth == 0)
             return heuristic(board);
 
-        else{
+        else {
             checktime();
             hash = getHash(board.getMarkedCells());
             saved = checkTransTable(hash, depth);
@@ -195,11 +192,11 @@ public class IDPlayer implements CXPlayer {
 
         //System.err.println("Start AB");
 
-        if(saved != null)
+        if (saved != null)
             return saved.eval;
 
 
-        // If it's the maximizing player's turn, initialize the best score to the smallest possible value
+            // If it's the maximizing player's turn, initialize the best score to the smallest possible value
         else if (board.currentPlayer() == player) {
             bestScore = Integer.MIN_VALUE;
             // Iterate over all possible moves and recursively evaluate each one
@@ -208,7 +205,7 @@ public class IDPlayer implements CXPlayer {
                 board.markColumn(i);
                 int score = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
                 board.unmarkColumn();
-                if(score >= bestScore){
+                if (score >= bestScore) {
                     bestScore = score;
                     bestCol = i;
                 }
@@ -216,7 +213,6 @@ public class IDPlayer implements CXPlayer {
 
                 if (beta <= alpha)
                     break; // Beta cutoff
-
 
 
                 //System.err.println("\tCol" + i + " val " + bestScore + "\n");
@@ -231,9 +227,9 @@ public class IDPlayer implements CXPlayer {
             for (int i : L) {
                 checktime();
                 board.markColumn(i);
-                int score = alphaBeta(board, board.getAvailableColumns(),depth - 1, player, alpha, beta);
+                int score = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
                 board.unmarkColumn();
-                if(score <= bestScore){
+                if (score <= bestScore) {
                     bestScore = score;
                     bestCol = i;
                 }
@@ -241,7 +237,6 @@ public class IDPlayer implements CXPlayer {
 
                 if (beta <= alpha)
                     break; // Alpha cutoff
-
 
 
                 //System.err.println("\tCol" + i + " val " + bestScore + "\n");
@@ -253,9 +248,9 @@ public class IDPlayer implements CXPlayer {
         return bestScore;
     }
 
-    int getHash(CXCell[] MC){
+    int getHash(CXCell[] MC) {
         int a[] = new int[MC.length];
-        for(int i = 0; i < MC.length; i++){
+        for (int i = 0; i < MC.length; i++) {
             int pos = MC[i].i * M + MC[i].j + 1;
             a[i] = (MC[i].state == CXCellState.P1) ? pos : (-pos);
         }
@@ -263,17 +258,17 @@ public class IDPlayer implements CXPlayer {
         return Arrays.hashCode(a);
     }
 
-    HashEntry checkTransTable(int hash, int depth){
+    HashEntry checkTransTable(int hash, int depth) {
         HashEntry saved = transTable.get(hash);
-        if(saved != null && saved.depth >= depth)
+        if (saved != null && saved.depth >= depth)
             return saved;
         else
             return null;
     }
 
-    void updateTransTable(int hash, HashEntry newRes){
+    void updateTransTable(int hash, HashEntry newRes) {
         HashEntry saved = transTable.get(hash);
-        if(saved == null || saved.depth <= newRes.depth){
+        if (saved == null || saved.depth <= newRes.depth) {
             if (transTable.size() == transTableCapacity) {
                 int firstKey = transTable.keySet().iterator().next();
                 transTable.remove(firstKey);
@@ -282,16 +277,16 @@ public class IDPlayer implements CXPlayer {
         }
     }
 
-    private int heuristic(CXBoard board){
-        return 0;
-        // return isNotColour(board.getBoard(), board.getLastMove().i, board.getLastMove().j) * 100;
+    private int heuristic(CXBoard board) {
+        //return 0;
+        return isNotColour(board.getBoard(), board.getLastMove().i, board.getLastMove().j);
     }
 
     private int isNotColour(CXCellState[][] B, int i, int j) {
         int n, max = 1, free;
 
-        CXCellState me = B[i][j];
-        CXCellState enemy = (B[i][j] == CXCellState.P1) ? CXCellState.P2 : CXCellState.P1;
+        CXCellState me = first ? CXCellState.P1 : CXCellState.P2;
+        CXCellState enemy = (me == CXCellState.P1) ? CXCellState.P2 : CXCellState.P1;
 
         // Useless pedantic check
         if (me == CXCellState.FREE)
@@ -300,52 +295,52 @@ public class IDPlayer implements CXPlayer {
         // Horizontal check
         free = 1;
         n = 1;
-        for (int k = 1; j-k >= 0 && B[i][j-k] != enemy; k++) {
+        for (int k = 1; j - k >= 0 && B[i][j - k] != enemy; k++) {
             free++;
-            if (B[i][j-k] == me) n++;
+            if (B[i][j - k] == me) n++;
         } // backward check
-        for (int k = 1; j+k <  N && B[i][j+k] != enemy; k++) {
+        for (int k = 1; j + k < N && B[i][j + k] != enemy; k++) {
             free++;
-            if (B[i][j+k] == me) n++;
+            if (B[i][j + k] == me) n++;
         } // forward check
         if (free >= K) max = n;
 
         // Vertical check
         free = 1;
         n = 1;
-        for (int k = 1; i+k <  M && B[i+k][j] != enemy; k++) {
+        for (int k = 1; i + k < M && B[i + k][j] != enemy; k++) {
             free++;
-            if (B[i+k][j] == me) n++;
+            if (B[i + k][j] == me) n++;
         }
         if (free >= K) max = Math.max(max, n);
 
         // Diagonal check
         free = 1;
         n = 1;
-        for (int k = 1; i-k >= 0 && j-k >= 0 && B[i-k][j-k] != enemy; k++) {
+        for (int k = 1; i - k >= 0 && j - k >= 0 && B[i - k][j - k] != enemy; k++) {
             free++;
-            if (B[i-k][j-k] != enemy) n++;
+            if (B[i - k][j - k] == me) n++;
         } // backward check
-        for (int k = 1; i+k <  M && j+k <  N && B[i+k][j+k] != enemy; k++) {
+        for (int k = 1; i + k < M && j + k < N && B[i + k][j + k] != enemy; k++) {
             free++;
-            if (B[i+k][j+k] == me) n++;
+            if (B[i + k][j + k] == me) n++;
         } // forward check
         if (free >= K) max = Math.max(n, max);
 
         // Anti-diagonal check
         free = 1;
         n = 1;
-        for (int k = 1; i-k >= 0 && j+k <  N && B[i-k][j+k] != enemy; k++) {
+        for (int k = 1; i - k >= 0 && j + k < N && B[i - k][j + k] != enemy; k++) {
             free++; // backward check
-            if (B[i-k][j+k] == me) n++; // backward check
+            if (B[i - k][j + k] == me) n++; // backward check
         }
-        for (int k = 1; i+k <  M && j-k >= 0 && B[i+k][j-k] != enemy; k++) {
+        for (int k = 1; i + k < M && j - k >= 0 && B[i + k][j - k] != enemy; k++) {
             free++; // forward check
-            if (B[i+k][j-k] == me) n++; // forward check
+            if (B[i + k][j - k] == me) n++; // forward check
         }
         if (free >= K) max = Math.max(max, n);
 
-        return max;
+        return max * 1000 + (this.N / 2) - Math.abs(j - (this.N / 2));
     }
 
     private void checktime() throws TimeoutException {
