@@ -140,7 +140,7 @@ public class IDPlayer implements CXPlayer {
 
                         if(d == 2)
                             System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
-
+                        if (value >= bestValue) {
                             System.err.println("Updated to col " + col + " and val " + value);
                             bestValue = value;
                             bestCol = col;
