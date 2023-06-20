@@ -105,6 +105,7 @@ public class IDPlayer implements CXPlayer {
         int freeCels = B.numOfFreeCells();
 
         int depth = 0;
+        int depth = 1;
         boolean pruning = false;
 
         while (depth < freeCels && !pruning) {
@@ -112,6 +113,7 @@ public class IDPlayer implements CXPlayer {
                 //System.err.println("Transtable size: " + transTable.size());
                 for (int d = 1; d <= depth && !pruning; d++) {
 
+                    /*
                     int hash = getHash(B.getMarkedCells());
                     HashEntry saved = checkTransTable(hash, d);
                     if (saved != null) {
@@ -121,6 +123,8 @@ public class IDPlayer implements CXPlayer {
                         continue;
                     }
 
+                     */
+
                     //System.err.println("Calculating depth " + d);
 
                     for (int col : L) { // for each column
@@ -128,18 +132,41 @@ public class IDPlayer implements CXPlayer {
                         //System.err.println("First it col " + col + " Depth: " + depth);
 
                         B.markColumn(col);
+<<<<<<< HEAD
                         int value = alphaBeta(B, B.getAvailableColumns(), d - 1, player, Integer.MIN_VALUE, Integer.MAX_VALUE);
+=======
+                        int value = alphaBeta(B, B.getAvailableColumns(), d-1, player, Integer.MIN_VALUE, Integer.MAX_VALUE);
+>>>>>>> 3974442d47e597b370c755446a132202107fe54a
                         B.unmarkColumn();
 
                         //System.err.println("Col " + col + " val " + value + "\n");
 
-                        //if(d == 2)
-                        //    System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
+                        if(d == 2)
+                            System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
                         if (value >= bestValue) {
+<<<<<<< HEAD
                             //System.err.println("Updated to col " + col + " and val " + value);
                             bestValue = value;
                             bestCol = col;
 
+=======
+                            System.err.println("Updated to col " + col + " and val " + value);
+                            bestValue = value;
+                            bestCol = col;
+                            /*
+                            if(value > bestValue){
+                                bestValue = value;
+                                bestCol = col;
+                            }
+                            */
+                            /*
+                            else if(value == bestValue && Math.abs(col - N/2) < Math.abs(bestCol - N/2)){
+                                bestCol = col;
+                                System.err.println("Equal col, updated to col " + col);
+                            }
+
+                             */
+>>>>>>> 3974442d47e597b370c755446a132202107fe54a
                         }
 
                         //System.err.println("Best Col: " + bestCol + " Best Val: " + bestValue);
@@ -152,7 +179,7 @@ public class IDPlayer implements CXPlayer {
                         }
 
                     }
-                    updateTransTable(hash, new HashEntry(bestValue, d, bestCol));
+                    //updateTransTable(hash, new HashEntry(bestValue, d, bestCol));
                 }
                 depth += 1;
             } catch (TimeoutException e) {
@@ -184,11 +211,17 @@ public class IDPlayer implements CXPlayer {
         } else if (depth == 0)
             return heuristic(board);
 
+<<<<<<< HEAD
         else {
+=======
+        /*
+        else{
+>>>>>>> 3974442d47e597b370c755446a132202107fe54a
             checktime();
             hash = getHash(board.getMarkedCells());
             saved = checkTransTable(hash, depth);
         }
+        */
 
         //System.err.println("Start AB");
 
@@ -218,7 +251,7 @@ public class IDPlayer implements CXPlayer {
                 //System.err.println("\tCol" + i + " val " + bestScore + "\n");
                 //System.err.println("Max col " + i + " Depth: " + depth);
             }
-            updateTransTable(hash, new HashEntry(bestScore, depth, bestCol));
+            //updateTransTable(hash, new HashEntry(bestScore, depth, bestCol));
         }
         // If it's the minimizing player's turn, initialize the best score to the largest possible value
         else {
@@ -242,7 +275,7 @@ public class IDPlayer implements CXPlayer {
                 //System.err.println("\tCol" + i + " val " + bestScore + "\n");
                 //System.err.println("Min col " + i + " Depth: " + depth);
             }
-            updateTransTable(hash, new HashEntry(bestScore, depth, bestCol));
+            //updateTransTable(hash, new HashEntry(bestScore, depth, bestCol));
         }
         //System.err.println("End AB");
         return bestScore;
