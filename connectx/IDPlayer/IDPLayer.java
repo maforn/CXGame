@@ -88,8 +88,8 @@ public class IDPlayer implements CXPlayer {
 
         START = System.currentTimeMillis(); // Save starting time
 
-        int alpha = -1;
-        int beta = 1;
+        int alpha = Integer.MIN_VALUE;
+        int beta = Integer.MAX_VALUE;
         int player = B.currentPlayer();
 
         return ID(B, player, alpha, beta);
@@ -98,7 +98,7 @@ public class IDPlayer implements CXPlayer {
     private int ID(CXBoard B, int player, int alpha, int beta){
 
         Integer[] L = B.getAvailableColumns();
-        int bestValue = -1;
+        int bestValue = Integer.MIN_VALUE;
         int bestCol = L[rand.nextInt(L.length)]; // Save a random column
         int freeCels = B.numOfFreeCells();
 
@@ -182,7 +182,7 @@ public class IDPlayer implements CXPlayer {
             if(board.gameState() == CXGameState.DRAW)
                 return 0;
             else
-                return ((board.gameState() == myWin) ? 1 : -1);
+                return ((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE);
         }
         else if(depth == 0)
             return heuristic(board);
@@ -201,7 +201,7 @@ public class IDPlayer implements CXPlayer {
 
         // If it's the maximizing player's turn, initialize the best score to the smallest possible value
         else if (board.currentPlayer() == player) {
-            bestScore = -1;
+            bestScore = Integer.MIN_VALUE;
             // Iterate over all possible moves and recursively evaluate each one
             for (int i : L) {
                 checktime();
@@ -226,7 +226,7 @@ public class IDPlayer implements CXPlayer {
         }
         // If it's the minimizing player's turn, initialize the best score to the largest possible value
         else {
-            bestScore = 1;
+            bestScore = Integer.MAX_VALUE;
             // Iterate over all possible moves and recursively evaluate each one
             for (int i : L) {
                 checktime();
@@ -284,6 +284,68 @@ public class IDPlayer implements CXPlayer {
 
     private int heuristic(CXBoard board){
         return 0;
+        // return isNotColour(board.getBoard(), board.getLastMove().i, board.getLastMove().j) * 100;
+    }
+
+    private int isNotColour(CXCellState[][] B, int i, int j) {
+        int n, max = 1, free;
+
+        CXCellState me = B[i][j];
+        CXCellState enemy = (B[i][j] == CXCellState.P1) ? CXCellState.P2 : CXCellState.P1;
+
+        // Useless pedantic check
+        if (me == CXCellState.FREE)
+            return max;
+
+        // Horizontal check
+        free = 1;
+        n = 1;
+        for (int k = 1; j-k >= 0 && B[i][j-k] != enemy; k++) {
+            free++;
+            if (B[i][j-k] == me) n++;
+        } // backward check
+        for (int k = 1; j+k <  N && B[i][j+k] != enemy; k++) {
+            free++;
+            if (B[i][j+k] == me) n++;
+        } // forward check
+        if (free >= K) max = n;
+
+        // Vertical check
+        free = 1;
+        n = 1;
+        for (int k = 1; i+k <  M && B[i+k][j] != enemy; k++) {
+            free++;
+            if (B[i+k][j] == me) n++;
+        }
+        if (free >= K) max = Math.max(max, n);
+
+        // Diagonal check
+        free = 1;
+        n = 1;
+        for (int k = 1; i-k >= 0 && j-k >= 0 && B[i-k][j-k] != enemy; k++) {
+            free++;
+            if (B[i-k][j-k] != enemy) n++;
+        } // backward check
+        for (int k = 1; i+k <  M && j+k <  N && B[i+k][j+k] != enemy; k++) {
+            free++;
+            if (B[i+k][j+k] == me) n++;
+        } // forward check
+        if (free >= K) max = Math.max(n, max);
+
+        // Anti-diagonal check
+        free = 1;
+        n = 1;
+        for (int k = 1; i-k >= 0 && j+k <  N && B[i-k][j+k] != enemy; k++) {
+            free++; // backward check
+            if (B[i-k][j+k] == me) n++; // backward check
+        }
+        for (int k = 1; i+k <  M && j-k >= 0 && B[i+k][j-k] != enemy; k++) {
+            free++; // forward check
+            if (B[i+k][j-k] == me) n++; // forward check
+        }
+        if (free >= K) max = Math.max(max, n);
+
+        return max;
     }
 
     private void checktime() throws TimeoutException {
