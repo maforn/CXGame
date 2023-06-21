@@ -26,9 +26,8 @@ import connectx.CXCellState;
 
 import java.util.TreeSet;
 import java.util.Random;
-import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 
 import java.util.Arrays;
 
@@ -43,7 +42,7 @@ import connectx.HashEntry.HashEntry;
  */
 public class IDPlayer implements CXPlayer {
 
-    LinkedHashMap<Integer, HashEntry> transTable;
+    HashMap<Integer, HashEntry> transTable;
     int transTableCapacity;
 
     private Random rand;
@@ -75,7 +74,7 @@ public class IDPlayer implements CXPlayer {
         this.first = first;
 
         transTableCapacity = 500;
-        transTable = new LinkedHashMap<>(transTableCapacity);
+        transTable = new HashMap<>(transTableCapacity);
     }
 
     /**
@@ -87,13 +86,10 @@ public class IDPlayer implements CXPlayer {
      * </p>
      */
     public int selectColumn(CXBoard B) {
-
         START = System.currentTimeMillis(); // Save starting time
-
         int alpha = Integer.MIN_VALUE;
         int beta = Integer.MAX_VALUE;
         int player = B.currentPlayer();
-
         return ID(B, player, alpha, beta);
     }
 
@@ -104,87 +100,29 @@ public class IDPlayer implements CXPlayer {
         int bestCol = L[rand.nextInt(L.length)]; // Save a random column
         int freeCels = B.numOfFreeCells();
 
-        int depth = 1;
         boolean pruning = false;
 
-        while (depth < freeCels && !pruning) {
-            try {
-                //System.err.println("Transtable size: " + transTable.size());
-                for (int d = 1; d <= depth && !pruning; d++) {
-
-                    /*
-                    int hash = getHash(B.getMarkedCells());
-                    HashEntry saved = checkTransTable(hash, d);
-                    if (saved != null) {
-                        bestValue = saved.eval;
-                        bestCol = saved.bestCol;
-                        //System.err.println("Depth " + d + " Saved val: " + bestValue + " col: " + bestCol);
-                        continue;
+        try{
+            for (int d = 1; d <= freeCels && !pruning; d++) {
+                for (int col : L) { // for each column
+                    B.markColumn(col);
+                    int value = alphaBeta(B, B.getAvailableColumns(), d - 1, player, Integer.MIN_VALUE, Integer.MAX_VALUE);
+                    B.unmarkColumn();
+                    if (value >= bestValue) {
+                        bestValue = value;
+                        bestCol = col;
                     }
-
-                     */
-
-                    //System.err.println("Calculating depth " + d);
-
-                    for (int col : L) { // for each column
-
-                        //System.err.println("First it col " + col + " Depth: " + depth);
-
-                        B.markColumn(col);
-
-                        int value = alphaBeta(B, B.getAvailableColumns(), d - 1, player, Integer.MIN_VALUE, Integer.MAX_VALUE);
-
-                        B.unmarkColumn();
-
-                        //System.err.println("Col " + col + " val " + value + "\n");
-
-                        if(d == 2)
-                            System.err.println("Depth: " + d + " Col: " + col + " Val: " + value);
-                        if (value >= bestValue) {
-                            System.err.println("Updated to col " + col + " and val " + value);
-                            bestValue = value;
-                            bestCol = col;
-                            /*
-                            if(value > bestValue){
-                                bestValue = value;
-                                bestCol = col;
-                            }
-                            */
-                            /*
-                            else if(value == bestValue && Math.abs(col - N/2) < Math.abs(bestCol - N/2)){
-                                bestCol = col;
-                                System.err.println("Equal col, updated to col " + col);
-                            }
-
-                             */
-                        }
-
-                        //System.err.println("Best Col: " + bestCol + " Best Val: " + bestValue);
-                        alpha = Math.max(alpha, bestValue);
-
-                        if (beta <= alpha) {
-                            //System.err.println("Pruning!");
-                            pruning = true;
-                            break;
-                        }
-
+                    alpha = Math.max(alpha, bestValue);
+                    if (beta <= alpha) {
+                        pruning = true;
+                        break;
                     }
-                    //updateTransTable(hash, new HashEntry(bestValue, d, bestCol));
                 }
-                depth += 1;
-            } catch (TimeoutException e) {
-                //System.err.println("Timeout! Best column selected");
-                break;
             }
         }
-
-        //transTable.forEach((key, value) -> System.out.println("Rank : " + key + "\t\t Name : " + value.depth + " " + value.eval));
-
-        //System.err.println("Max depth: " + depth);
-        //System.err.println(transTable.elements());
-
-        //System.err.println("End ID");
-        //System.err.println("Best col: " + bestCol + " Best val: " + bestValue);
+        catch (TimeoutException e) {
+            System.err.println("Timeout! Best column selected");
+        }
         return bestCol;
     }
 
@@ -201,20 +139,6 @@ public class IDPlayer implements CXPlayer {
         } else if (depth == 0)
             return heuristic(board);
 
-        /*
-        else{
-            checktime();
-            hash = getHash(board.getMarkedCells());
-            saved = checkTransTable(hash, depth);
-        }
-        */
-
-        //System.err.println("Start AB");
-
-        if (saved != null)
-            return saved.eval;
-
-
             // If it's the maximizing player's turn, initialize the best score to the smallest possible value
         else if (board.currentPlayer() == player) {
             bestScore = Integer.MIN_VALUE;
@@ -229,15 +153,9 @@ public class IDPlayer implements CXPlayer {
                     bestCol = i;
                 }
                 alpha = Math.max(alpha, bestScore);
-
                 if (beta <= alpha)
                     break; // Beta cutoff
-
-
-                //System.err.println("\tCol" + i + " val " + bestScore + "\n");
-                //System.err.println("Max col " + i + " Depth: " + depth);
             }
-            //updateTransTable(hash, new HashEntry(bestScore, depth, bestCol));
         }
         // If it's the minimizing player's turn, initialize the best score to the largest possible value
         else {
@@ -253,17 +171,10 @@ public class IDPlayer implements CXPlayer {
                     bestCol = i;
                 }
                 beta = Math.min(beta, bestScore);
-
                 if (beta <= alpha)
                     break; // Alpha cutoff
-
-
-                //System.err.println("\tCol" + i + " val " + bestScore + "\n");
-                //System.err.println("Min col " + i + " Depth: " + depth);
             }
-            //updateTransTable(hash, new HashEntry(bestScore, depth, bestCol));
         }
-        //System.err.println("End AB");
         return bestScore;
     }
 
@@ -288,10 +199,12 @@ public class IDPlayer implements CXPlayer {
     void updateTransTable(int hash, HashEntry newRes) {
         HashEntry saved = transTable.get(hash);
         if (saved == null || saved.depth <= newRes.depth) {
+            /*
             if (transTable.size() == transTableCapacity) {
                 int firstKey = transTable.keySet().iterator().next();
                 transTable.remove(firstKey);
             }
+             */
             transTable.put(hash, newRes);
         }
     }
