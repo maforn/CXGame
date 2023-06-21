@@ -73,8 +73,8 @@ public class IDPlayer implements CXPlayer {
 
         this.first = first;
 
-        transTableCapacity = 500;
-        transTable = new HashMap<>(transTableCapacity);
+        //transTableCapacity = 500;
+        //transTable = new HashMap<>(transTableCapacity);
     }
 
     /**
@@ -96,61 +96,81 @@ public class IDPlayer implements CXPlayer {
     private int ID(CXBoard B, int player, int alpha, int beta) {
 
         Integer[] L = B.getAvailableColumns();
-        int bestValue = Integer.MIN_VALUE;
-        int bestCol = L[rand.nextInt(L.length)]; // Save a random column
-        int freeCels = B.numOfFreeCells();
 
+        int bestSavedScore = Integer.MIN_VALUE;
+        int bestSavedCol = L[rand.nextInt(L.length)]; // Save a random column
+        int bestLevelScore, bestLevelCol;
+
+        int longestPathToBest = Integer.MIN_VALUE;
+
+        int freeCels = B.numOfFreeCells();
         boolean pruning = false;
 
         try{
-            for (int d = 1; d <= freeCels && !pruning; d++) {
+            for (int depth = 1; depth <= freeCels && !pruning; depth++) {
+                bestLevelScore = Integer.MIN_VALUE;
+                bestLevelCol = bestSavedCol;
                 for (int col : L) { // for each column
                     B.markColumn(col);
-                    int value = alphaBeta(B, B.getAvailableColumns(), d - 1, player, Integer.MIN_VALUE, Integer.MAX_VALUE);
+                    int[] eval = alphaBeta(B, B.getAvailableColumns(), depth - 1, player, Integer.MIN_VALUE, Integer.MAX_VALUE);
                     B.unmarkColumn();
-                    if (value >= bestValue) {
-                        bestValue = value;
-                        bestCol = col;
+
+                    //System.err.println("col " + col + " eval " + eval[0]);
+
+                    if(eval[0] > bestLevelScore){
+                        bestLevelScore = eval[0];
+                        bestLevelCol = col;
                     }
-                    alpha = Math.max(alpha, bestValue);
+                    else if(eval[0] == bestLevelScore && bestLevelScore <= 0 && depth-eval[1] > longestPathToBest){
+                         bestLevelCol = col;
+                         longestPathToBest = depth-eval[1];
+                    }
+                    alpha = Math.max(alpha, bestSavedScore);
                     if (beta <= alpha) {
                         pruning = true;
                         break;
                     }
                 }
+                bestSavedCol = bestLevelCol;
+                bestSavedScore = bestLevelScore;
+                System.err.println("Max depth " + depth + " best col " + bestSavedCol + " best val " + bestSavedScore);
             }
         }
         catch (TimeoutException e) {
             System.err.println("Timeout! Best column selected");
         }
-        return bestCol;
+        return bestSavedCol;
     }
 
-    private int alphaBeta(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException {
-
-        int bestScore, bestCol = L[rand.nextInt(L.length)], hash;
-        HashEntry saved = null;
+    private int[] alphaBeta(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta) throws TimeoutException {
 
         if (board.gameState() != CXGameState.OPEN) {
             if (board.gameState() == CXGameState.DRAW)
-                return 0;
+                return new int[] {0, depth};
             else
-                return ((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE);
+                return new int[] {((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), depth};
         } else if (depth == 0)
-            return heuristic(board);
+            return new int[]{heuristic(board), depth};
+
+        int bestScore, bestCol = L[rand.nextInt(L.length)], hash;
+        int longestPathToBest = Integer.MIN_VALUE;
 
             // If it's the maximizing player's turn, initialize the best score to the smallest possible value
-        else if (board.currentPlayer() == player) {
+        if (board.currentPlayer() == player) {
             bestScore = Integer.MIN_VALUE;
             // Iterate over all possible moves and recursively evaluate each one
-            for (int i : L) {
+            for (int col : L) {
                 checktime();
-                board.markColumn(i);
-                int score = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
+                board.markColumn(col);
+                int[] eval = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
                 board.unmarkColumn();
-                if (score >= bestScore) {
-                    bestScore = score;
-                    bestCol = i;
+                if (eval[0] > bestScore) {
+                    bestScore = eval[0];
+                    bestCol = col;
+                }
+                else if(eval[0] == bestScore && bestScore <= 0 && depth-eval[1] > longestPathToBest){
+                    bestCol = col;
+                    longestPathToBest = depth-eval[1];
                 }
                 alpha = Math.max(alpha, bestScore);
                 if (beta <= alpha)
@@ -161,21 +181,26 @@ public class IDPlayer implements CXPlayer {
         else {
             bestScore = Integer.MAX_VALUE;
             // Iterate over all possible moves and recursively evaluate each one
-            for (int i : L) {
+            for (int col : L) {
                 checktime();
-                board.markColumn(i);
-                int score = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
+                board.markColumn(col);
+                int[] eval = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta);
                 board.unmarkColumn();
-                if (score <= bestScore) {
-                    bestScore = score;
-                    bestCol = i;
+
+                if (eval[0] < bestScore) {
+                    bestScore = eval[0];
+                    bestCol = col;
+                }
+                else if(eval[0] == bestScore && bestScore >= 0 && depth-eval[1] > longestPathToBest){
+                    bestCol = col;
+                    longestPathToBest = depth-eval[1];
                 }
                 beta = Math.min(beta, bestScore);
                 if (beta <= alpha)
                     break; // Alpha cutoff
             }
         }
-        return bestScore;
+        return new int[]{bestScore, depth - longestPathToBest};
     }
 
     int getHash(CXCell[] MC) {
