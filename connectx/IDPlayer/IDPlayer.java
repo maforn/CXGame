@@ -94,50 +94,23 @@ public class IDPlayer implements CXPlayer {
     }
 
     private int ID(CXBoard B, int player, int alpha, int beta) {
-
         Integer[] L = B.getAvailableColumns();
 
         int bestSavedScore = Integer.MIN_VALUE;
         int bestSavedCol = L[rand.nextInt(L.length)]; // Save a random column
-        int bestLevelScore, bestLevelCol;
-
-        int longestPathToBest = Integer.MIN_VALUE;
-
         int freeCels = B.numOfFreeCells();
         boolean pruning = false;
 
         try{
             for (int depth = 1; depth <= freeCels && !pruning; depth++) {
-                bestLevelScore = Integer.MIN_VALUE;
-                bestLevelCol = bestSavedCol;
-                for (int col : L) { // for each column
-                    B.markColumn(col);
-                    int[] eval = alphaBeta(B, B.getAvailableColumns(), depth - 1, player, Integer.MIN_VALUE, Integer.MAX_VALUE);
-                    B.unmarkColumn();
-
-                    //System.err.println("col " + col + " eval " + eval[0]);
-
-                    if(eval[0] > bestLevelScore){
-                        bestLevelScore = eval[0];
-                        bestLevelCol = col;
-                    }
-                    else if(eval[0] == bestLevelScore && bestLevelScore <= 0 && depth-eval[1] > longestPathToBest){
-                         bestLevelCol = col;
-                         longestPathToBest = depth-eval[1];
-                    }
-                    alpha = Math.max(alpha, bestSavedScore);
-                    if (beta <= alpha) {
-                        pruning = true;
-                        break;
-                    }
-                }
-                bestSavedCol = bestLevelCol;
-                bestSavedScore = bestLevelScore;
-                System.err.println("Max depth " + depth + " best col " + bestSavedCol + " best val " + bestSavedScore);
+                int[] eval = alphaBeta(B, B.getAvailableColumns(), depth, player, alpha, beta);
+                bestSavedScore = eval[0];
+                bestSavedCol = eval[1];
+                //System.err.println("Max depth " + depth + " best col " + bestSavedCol + " best val " + bestSavedScore);
             }
         }
         catch (TimeoutException e) {
-            System.err.println("Timeout! Best column selected");
+            //System.err.println("Timeout! Best column selected");
         }
         return bestSavedCol;
     }
@@ -146,11 +119,11 @@ public class IDPlayer implements CXPlayer {
 
         if (board.gameState() != CXGameState.OPEN) {
             if (board.gameState() == CXGameState.DRAW)
-                return new int[] {0, depth};
+                return new int[] {0, -1, depth};
             else
-                return new int[] {((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), depth};
+                return new int[] {((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), -1, depth};
         } else if (depth == 0)
-            return new int[]{heuristic(board), depth};
+            return new int[]{heuristic(board), -1, depth};
 
         int bestScore, bestCol = L[rand.nextInt(L.length)], hash;
         int longestPathToBest = Integer.MIN_VALUE;
@@ -168,7 +141,7 @@ public class IDPlayer implements CXPlayer {
                     bestScore = eval[0];
                     bestCol = col;
                 }
-                else if(eval[0] == bestScore && bestScore <= 0 && depth-eval[1] > longestPathToBest){
+                else if(eval[0] == bestScore && bestScore <= 0 && depth-eval[2] > longestPathToBest){
                     bestCol = col;
                     longestPathToBest = depth-eval[1];
                 }
@@ -191,7 +164,7 @@ public class IDPlayer implements CXPlayer {
                     bestScore = eval[0];
                     bestCol = col;
                 }
-                else if(eval[0] == bestScore && bestScore >= 0 && depth-eval[1] > longestPathToBest){
+                else if(eval[0] == bestScore && bestScore >= 0 && depth-eval[2] > longestPathToBest){
                     bestCol = col;
                     longestPathToBest = depth-eval[1];
                 }
@@ -200,7 +173,7 @@ public class IDPlayer implements CXPlayer {
                     break; // Alpha cutoff
             }
         }
-        return new int[]{bestScore, depth - longestPathToBest};
+        return new int[]{bestScore, bestCol, depth - longestPathToBest};
     }
 
     int getHash(CXCell[] MC) {
