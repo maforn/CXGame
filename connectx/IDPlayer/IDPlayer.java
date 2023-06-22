@@ -101,15 +101,14 @@ public class IDPlayer implements CXPlayer {
         int freeCels = B.numOfFreeCells();
         boolean pruning = false;
 
-        try{
+        try {
             for (int depth = 1; depth <= freeCels && !pruning; depth++) {
                 int[] eval = alphaBeta(B, B.getAvailableColumns(), depth, player, alpha, beta);
                 bestSavedScore = eval[0];
                 bestSavedCol = eval[1];
                 //System.err.println("Max depth " + depth + " best col " + bestSavedCol + " best val " + bestSavedScore);
             }
-        }
-        catch (TimeoutException e) {
+        } catch (TimeoutException e) {
             //System.err.println("Timeout! Best column selected");
         }
         return bestSavedCol;
@@ -119,16 +118,16 @@ public class IDPlayer implements CXPlayer {
 
         if (board.gameState() != CXGameState.OPEN) {
             if (board.gameState() == CXGameState.DRAW)
-                return new int[] {0, -1, depth};
+                return new int[]{0, -1, depth};
             else
-                return new int[] {((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), -1, depth};
+                return new int[]{((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), -1, depth};
         } else if (depth == 0)
             return new int[]{heuristic(board), -1, depth};
 
         int bestScore, bestCol = L[rand.nextInt(L.length)], hash;
         int longestPathToBest = Integer.MIN_VALUE;
 
-            // If it's the maximizing player's turn, initialize the best score to the smallest possible value
+        // If it's the maximizing player's turn, initialize the best score to the smallest possible value
         if (board.currentPlayer() == player) {
             bestScore = Integer.MIN_VALUE;
             // Iterate over all possible moves and recursively evaluate each one
@@ -140,10 +139,9 @@ public class IDPlayer implements CXPlayer {
                 if (eval[0] > bestScore) {
                     bestScore = eval[0];
                     bestCol = col;
-                }
-                else if(eval[0] == bestScore && bestScore <= 0 && depth-eval[2] > longestPathToBest){
+                } else if (eval[0] == bestScore && bestScore <= 0 && depth - eval[2] > longestPathToBest) {
                     bestCol = col;
-                    longestPathToBest = depth-eval[1];
+                    longestPathToBest = depth - eval[1];
                 }
                 alpha = Math.max(alpha, bestScore);
                 if (beta <= alpha)
@@ -163,10 +161,9 @@ public class IDPlayer implements CXPlayer {
                 if (eval[0] < bestScore) {
                     bestScore = eval[0];
                     bestCol = col;
-                }
-                else if(eval[0] == bestScore && bestScore >= 0 && depth-eval[2] > longestPathToBest){
+                } else if (eval[0] == bestScore && bestScore >= 0 && depth - eval[2] > longestPathToBest) {
                     bestCol = col;
-                    longestPathToBest = depth-eval[1];
+                    longestPathToBest = depth - eval[1];
                 }
                 beta = Math.min(beta, bestScore);
                 if (beta <= alpha)
