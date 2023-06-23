@@ -132,7 +132,7 @@ public class IDPlayer implements CXPlayer {
                 return new int[] {((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), -1};
         } else if (depth == 0)
             //return new int[]{heuristic(board), -1};
-            return new int[]{0, -1};
+            return new int[]{1, -1};
 
         int bestScore, bestCol = L[rand.nextInt(L.length)];
 
@@ -149,7 +149,7 @@ public class IDPlayer implements CXPlayer {
                     bestCol = col;
                     //shortestPathToWin = eval[2] + 1;
                 }
-                else if(depth == d && eval[0] == 0){
+                else if(depth == d && eval[0] == 1){
                     int h = heuristic(board);
                     if(h > bestScore){
                         bestScore = h;
