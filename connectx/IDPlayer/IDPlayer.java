@@ -27,7 +27,7 @@ import connectx.CXCellState;
 import java.util.TreeSet;
 import java.util.Random;
 import java.util.concurrent.TimeoutException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 import java.util.Arrays;
 
@@ -42,7 +42,7 @@ import connectx.HashEntry.HashEntry;
  */
 public class IDPlayer implements CXPlayer {
 
-    HashMap<Integer, HashEntry> transTable;
+    LinkedHashMap<Integer, HashEntry> transTable;
     int transTableCapacity;
 
     private Random rand;
@@ -73,8 +73,10 @@ public class IDPlayer implements CXPlayer {
 
         this.first = first;
 
-        //transTableCapacity = 500;
-        //transTable = new HashMap<>(transTableCapacity);
+        int desiredDepthMemory = 5;
+        transTableCapacity = (int)Math.pow(N, desiredDepthMemory);
+        //transTableCapacity = 20000000;
+        transTable = new LinkedHashMap<>(transTableCapacity, 1);
     }
 
     /**
@@ -102,8 +104,8 @@ public class IDPlayer implements CXPlayer {
 
         try{
             for (int depth = 1; depth <= freeCells; depth++) {
+                //System.err.println("TT size " + transTable.size());
                 int[] eval = alphaBeta(B, L, depth, player, alpha, beta, depth);
-
                 if(eval[0] == Integer.MIN_VALUE)
                     break;
                 else{
@@ -112,7 +114,7 @@ public class IDPlayer implements CXPlayer {
                     if(bestSavedScore >= Integer.MAX_VALUE)
                         break;
                 }
-                //System.err.println("Max depth " + depth + " best col " + bestSavedCol + " best val " + bestSavedScore + " PathLen " + eval[2]);
+                //System.err.println("Max depth " + depth);
             }
         }
         catch (TimeoutException e) {
@@ -123,18 +125,20 @@ public class IDPlayer implements CXPlayer {
 
     private int[] alphaBeta(CXBoard board, Integer[] L, int depth, int player, int alpha, int beta, int d) throws TimeoutException {
 
-        //int longestPathToBest = 0, shortestPathToWin = Integer.MAX_VALUE;
-
         if (board.gameState() != CXGameState.OPEN) {
             if (board.gameState() == CXGameState.DRAW)
                 return new int[] {0, -1};
             else
                 return new int[] {((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), -1};
         } else if (depth == 0)
-            //return new int[]{heuristic(board), -1};
-            return new int[]{1, -1};
+            return new int[]{heuristic(board), -1};
 
-        int bestScore, bestCol = L[rand.nextInt(L.length)];
+
+        int hash = getHash(board.getMarkedCells());
+        HashEntry saved = checkTransTable(hash);
+        if(saved != null)
+            return new int[]{saved.eval, saved.bestCol};
+        int bestScore, bestCol = -1;
 
             // If it's the maximizing player's turn, initialize the best score to the smallest possible value
         if (board.currentPlayer() == player) {
@@ -143,29 +147,12 @@ public class IDPlayer implements CXPlayer {
             for (int col : L) {
                 checktime();
                 board.markColumn(col);
-                int[] eval = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta, depth);
+                int[] eval = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta, d);
                 if (eval[0] > bestScore) {
                     bestScore = eval[0];
                     bestCol = col;
-                    //shortestPathToWin = eval[2] + 1;
-                }
-                else if(depth == d && eval[0] == 1){
-                    int h = heuristic(board);
-                    if(h > bestScore){
-                        bestScore = h;
-                        bestCol = col;
-                    }
                 }
                 board.unmarkColumn();
-                /*
-                else if(eval[0] == bestScore && (bestScore == 0 || bestScore == Integer.MIN_VALUE) && eval[2] >= longestPathToBest){
-                    bestCol = col;
-                    longestPathToBest = eval[2] + 1;
-                    if(d == depth)
-                        System.err.println("LP " + longestPathToBest + " col " + bestCol + " best score " + bestScore + " " + depth + " a " + alpha + " b " + beta);
-                }
-
-                 */
                 alpha = Math.max(alpha, bestScore);
                 if (beta <= alpha)
                     break; // Beta cutoff
@@ -178,33 +165,20 @@ public class IDPlayer implements CXPlayer {
             for (int col : L) {
                 checktime();
                 board.markColumn(col);
-                int[] eval = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta, depth);
-                board.unmarkColumn();
-
+                int[] eval = alphaBeta(board, board.getAvailableColumns(), depth - 1, player, alpha, beta, d);
                 if (eval[0] < bestScore) {
                     bestScore = eval[0];
                     bestCol = col;
-                    //shortestPathToWin = eval[2] + 1;
-                    //if(bestScore == Integer.MIN_VALUE)
-                    //    System.err.println("Win opponent LP " + longestPathToBest + " col " + bestCol + " d " + (d - depth));
                 }
-                /*
-                else if(eval[0] == bestScore && (bestScore == 0 || bestScore == Integer.MAX_VALUE) && eval[2] >= longestPathToBest){
-                    bestCol = col;
-                    longestPathToBest = eval[2] + 1;
-                }
-                 */
+                board.unmarkColumn();
                 beta = Math.min(beta, bestScore);
                 if (beta <= alpha)
                     break; // Alpha cutoff
             }
         }
-        /*
-        if(alpha == Integer.MIN_VALUE || beta == Integer.MAX_VALUE)
-            return new int[]{bestScore, bestCol, longestPathToBest};
-        else
-            return new int[]{bestScore, bestCol, shortestPathToWin};
-         */
+
+        if(d - depth >= 2 && (bestScore == Integer.MIN_VALUE || bestScore == 0 || bestScore == Integer.MAX_VALUE))
+            updateTransTable(hash, new HashEntry(bestScore, bestCol, depth));
         return new int[]{bestScore, bestCol};
     }
 
@@ -218,29 +192,27 @@ public class IDPlayer implements CXPlayer {
         return Arrays.hashCode(a);
     }
 
-    HashEntry checkTransTable(int hash, int depth) {
+    HashEntry checkTransTable(int hash) {
         HashEntry saved = transTable.get(hash);
-        if (saved != null && saved.depth >= depth)
-            return saved;
-        else
-            return null;
+        if(saved != null){
+            transTable.remove(hash);
+            transTable.put(hash, saved);
+        }
+        return saved;
     }
 
     void updateTransTable(int hash, HashEntry newRes) {
         HashEntry saved = transTable.get(hash);
         if (saved == null || saved.depth <= newRes.depth) {
-            /*
-            if (transTable.size() == transTableCapacity) {
+            if (transTable.size() >= transTableCapacity) {
                 int firstKey = transTable.keySet().iterator().next();
                 transTable.remove(firstKey);
             }
-             */
             transTable.put(hash, newRes);
         }
     }
 
     private int heuristic(CXBoard board) {
-        //return 0;
         return isNotColour(board.getBoard(), board.getLastMove().i, board.getLastMove().j);
     }
 
