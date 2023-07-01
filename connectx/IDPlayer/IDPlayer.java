@@ -41,8 +41,12 @@ import connectx.HashEntry.HashEntry;
  * </p>
  */
 public class IDPlayer implements CXPlayer {
-    LinkedHashMap<Integer, HashEntry> transTable;
+    int[] moveOrder;
+    long[][][] zobristTable;
+    LinkedHashMap<Long, HashEntry> transTable;
     int transTableCapacity;
+
+    long hashKey;
 
     private Random rand;
     private CXGameState myWin;
@@ -50,16 +54,12 @@ public class IDPlayer implements CXPlayer {
     private int TIMEOUT;
     private long START;
 
-    int M; //rows
-    int N; //cols
+    int numOfRows; //rows
+    int numOfCols; //cols
     int K;
     boolean first;
-
     int missed;
 
-    int[] moveOrder;
-
-    CXBoard board;
 
     /* Default empty constructor */
     public IDPlayer() {
@@ -72,28 +72,46 @@ public class IDPlayer implements CXPlayer {
         yourWin = first ? CXGameState.WINP2 : CXGameState.WINP1;
         TIMEOUT = timeout_in_secs;
 
-        this.M = M;
-        this.N = N;
+        this.numOfRows = M;
+        this.numOfCols = N;
         this.K = K;
 
         this.first = first;
         missed = 0;
 
-        //move ordering
-        moveOrder = new int[N];
-        for(int i = 0; i < N; i++){
+        initMoveOrder();
+        initZobristTable();
+        initTransTable();
+    }
+
+    private void initMoveOrder(){
+        moveOrder = new int[numOfCols];
+        for(int i = 0; i < numOfCols; i++){
             if(i % 2 == 0)
-                moveOrder[i] = N/2 + i/2;
+                moveOrder[i] = numOfCols/2 + i/2;
             else
-                moveOrder[i] = N/2 - i/2 - 1;
+                moveOrder[i] = numOfCols/2 - i/2 - 1;
         }
+    }
 
-        //System.err.println("Order " + Arrays.toString(moveOrder));
+    private void initZobristTable(){
+        zobristTable = new long[numOfRows][numOfCols][2];
 
+        for (int r = 0; r < numOfRows; r++) {
+            for (int c = 0; c < numOfCols; c++) {
+                for (int p = 0; p < 2; p++) {
+                    zobristTable[r][c][p] = rand.nextLong();
+                }
+            }
+        }
+        hashKey = 0;
+    }
+
+    private void initTransTable(){
         int desiredDepthMemory = 5;
         //transTableCapacity = (int)Math.pow(N, desiredDepthMemory);
         transTableCapacity = 20000000;
-        transTable = new LinkedHashMap<Integer, HashEntry>(transTableCapacity, 1);
+        transTable = new LinkedHashMap<Long, HashEntry>(transTableCapacity, 1);
     }
 
     /**
@@ -106,23 +124,30 @@ public class IDPlayer implements CXPlayer {
      */
     public int selectColumn(CXBoard B) {
         START = System.currentTimeMillis(); // Save starting time
+
+        CXBoard copyOfBoard = B.copy();
+        hashKey = updateHashKey(copyOfBoard, hashKey);
+
         int alpha = Integer.MIN_VALUE;
         int beta = Integer.MAX_VALUE;
         int player = B.currentPlayer();
-        this.board = B;
-        return ID(player, alpha, beta);
+
+        int choice = ID(B, player, alpha, beta, hashKey);
+
+        copyOfBoard.markColumn(choice);
+        hashKey = updateHashKey(copyOfBoard, hashKey);
+
+        return choice;
     }
 
-    private int ID(int player, int alpha, int beta) {
+    private int ID(CXBoard board, int player, int alpha, int beta, long hashKey) {
         int bestSavedScore = Integer.MIN_VALUE;
         int bestSavedCol = board.getAvailableColumns()[0];
         int freeCells = board.numOfFreeCells();
 
-        //System.err.println("Symmetric " + isSymmetric(board) + " " + (N/2));
-
         try{
             for (int depth = 1; depth <= freeCells; depth++) {
-                int[] eval = alphaBeta(depth, player, alpha, beta, depth);
+                int[] eval = alphaBeta(board, depth, player, alpha, beta, hashKey);
                 if(eval[0] == Integer.MIN_VALUE)
                     break;
                 else{
@@ -131,14 +156,14 @@ public class IDPlayer implements CXPlayer {
                     if(bestSavedScore >= beta)
                         break;
                 }
-                //System.err.println("Max depth " + depth + " TT Size " + transTable.size() + " Missed " + missed);
+                System.err.println("Max depth " + depth + " TT Size " + transTable.size() + " Missed " + missed);
             }
         } catch (TimeoutException e) { }
 
         return bestSavedCol;
     }
 
-    private int[] alphaBeta(int depth, int player, int alpha, int beta, int d) throws TimeoutException {
+    private int[] alphaBeta(CXBoard board, int depth, int player, int alpha, int beta, long hashKey) throws TimeoutException {
 
         if (board.gameState() != CXGameState.OPEN) {
             if (board.gameState() == CXGameState.DRAW)
@@ -149,12 +174,10 @@ public class IDPlayer implements CXPlayer {
             //return new int[]{heuristic(board), -1};
             return new int[]{0, -1};
 
-        /*
-        Integer hash = getHash(board.getMarkedCells());
-        HashEntry saved = checkTransTable(hash, board.currentPlayer());
+        //Integer hash = getHash(board.getMarkedCells());
+        HashEntry saved = checkTransTable(hashKey, board.currentPlayer());
         if(saved != null)
             return new int[]{saved.eval, saved.bestCol};
-         */
 
         int bestScore, bestCol = -1, colsToCheck;
 
@@ -164,18 +187,20 @@ public class IDPlayer implements CXPlayer {
         // If it's the maximizing player's turn, initialize the best score to the smallest possible value
         if (board.currentPlayer() == player) {
             bestScore = Integer.MIN_VALUE;
-            for (int i = 0; i < N; i = isSymmetric ? i+2 : i+1) {
+            for (int i = 0; i < numOfCols; i = isSymmetric ? i+2 : i+1) {
                 int col = moveOrder[i];
                 if(board.fullColumn(col))
                     continue;
                 //System.err.println(col);
                 checktime();
                 board.markColumn(col);
-                int[] eval = alphaBeta(depth - 1, player, alpha, beta, d);
+                hashKey = updateHashKey(board, hashKey);
+                int[] eval = alphaBeta(board, depth - 1, player, alpha, beta, hashKey);
                 if (eval[0] > bestScore) {
                     bestScore = eval[0];
                     bestCol = col;
                 }
+                hashKey = updateHashKey(board, hashKey);
                 board.unmarkColumn();
                 alpha = Math.max(alpha, bestScore);
                 if (beta <= alpha)
@@ -185,17 +210,19 @@ public class IDPlayer implements CXPlayer {
         // If it's the minimizing player's turn, initialize the best score to the largest possible value
         else {
             bestScore = Integer.MAX_VALUE;
-            for (int i = 0; i < N; i = isSymmetric ? i+2 : i+1) {
+            for (int i = 0; i < numOfCols; i = isSymmetric ? i+2 : i+1) {
                 int col = moveOrder[i];
                 if(board.fullColumn(col))
                     continue;
                 checktime();
                 board.markColumn(col);
-                int[] eval = alphaBeta(depth - 1, player, alpha, beta, d);
+                hashKey = updateHashKey(board, hashKey);
+                int[] eval = alphaBeta(board,depth - 1, player, alpha, beta, hashKey);
                 if (eval[0] < bestScore) {
                     bestScore = eval[0];
                     bestCol = col;
                 }
+                hashKey = updateHashKey(board, hashKey);
                 board.unmarkColumn();
                 beta = Math.min(beta, bestScore);
                 if (beta <= alpha)
@@ -203,8 +230,8 @@ public class IDPlayer implements CXPlayer {
             }
         }
 
-        //if(depth >= 1 && (bestScore == Integer.MIN_VALUE || bestScore == Integer.MAX_VALUE))
-        //   updateTransTable(hash, new HashEntry(bestScore, bestCol, board.currentPlayer()));
+        if(bestScore == Integer.MIN_VALUE || bestScore == Integer.MAX_VALUE)
+            updateTransTable(hashKey, new HashEntry(bestScore, bestCol, board.currentPlayer()));
 
         return new int[]{bestScore, bestCol};
     }
@@ -213,26 +240,22 @@ public class IDPlayer implements CXPlayer {
         checktime();
         CXCell[] MC = board.getMarkedCells();
         for(CXCell cell : MC){
-            if(board.cellState(cell.i, N - cell.j - 1) != cell.state)
+            if(board.cellState(cell.i, numOfCols - cell.j - 1) != cell.state)
                 return false;
         }
         return true;
     }
 
-    Integer getHash(CXCell[] MC)  throws TimeoutException{
-        checktime();
-        Integer a[] = new Integer[MC.length];
-        for (int i = 0; i < MC.length; i++) {
-            int pos = MC[i].i * M + MC[i].j;
-            a[i] = (MC[i].state == CXCellState.P1) ? pos : (-pos);
+    long updateHashKey(CXBoard board, long hashKey){
+        CXCell lastMove = board.getLastMove();
+        if(lastMove != null) {
+            int lastPlayer = (lastMove.state == CXCellState.P1) ? 0 : 1;
+            hashKey ^= zobristTable[lastMove.i][lastMove.j][lastPlayer];
         }
-        //Arrays.sort(a);
-        //return a.hashCode();
-        return Arrays.hashCode(a);
-        //return a;
+        return hashKey;
     }
 
-    HashEntry checkTransTable(Integer hash, int player)throws TimeoutException {
+    HashEntry checkTransTable(Long hash, int player)throws TimeoutException {
         checktime();
         HashEntry saved = transTable.get(hash);
         if(saved != null && saved.player == player){
@@ -243,13 +266,12 @@ public class IDPlayer implements CXPlayer {
             missed += 1;
 
         return null;
-
     }
 
-    void updateTransTable(Integer hash, HashEntry newRes)  throws TimeoutException{
+    void updateTransTable(Long hash, HashEntry newRes)  throws TimeoutException{
         checktime();
         if (transTable.size() >= transTableCapacity) {
-            Integer firstKey = transTable.keySet().iterator().next();
+            Long firstKey = transTable.keySet().iterator().next();
             transTable.remove(firstKey);
         }
         transTable.put(hash, newRes);
@@ -276,7 +298,7 @@ public class IDPlayer implements CXPlayer {
             free++;
             if (B[i][j - k] == me) n++;
         } // backward check
-        for (int k = 1; j + k < N && B[i][j + k] != enemy; k++) {
+        for (int k = 1; j + k < numOfCols && B[i][j + k] != enemy; k++) {
             free++;
             if (B[i][j + k] == me) n++;
         } // forward check
@@ -285,7 +307,7 @@ public class IDPlayer implements CXPlayer {
         // Vertical check
         free = 1;
         n = 1;
-        for (int k = 1; i + k < M && B[i + k][j] != enemy; k++) {
+        for (int k = 1; i + k < numOfRows && B[i + k][j] != enemy; k++) {
             free++;
             if (B[i + k][j] == me) n++;
         }
@@ -298,7 +320,7 @@ public class IDPlayer implements CXPlayer {
             free++;
             if (B[i - k][j - k] == me) n++;
         } // backward check
-        for (int k = 1; i + k < M && j + k < N && B[i + k][j + k] != enemy; k++) {
+        for (int k = 1; i + k < numOfRows && j + k < numOfCols && B[i + k][j + k] != enemy; k++) {
             free++;
             if (B[i + k][j + k] == me) n++;
         } // forward check
@@ -307,17 +329,17 @@ public class IDPlayer implements CXPlayer {
         // Anti-diagonal check
         free = 1;
         n = 1;
-        for (int k = 1; i - k >= 0 && j + k < N && B[i - k][j + k] != enemy; k++) {
+        for (int k = 1; i - k >= 0 && j + k < numOfCols && B[i - k][j + k] != enemy; k++) {
             free++; // backward check
             if (B[i - k][j + k] == me) n++; // backward check
         }
-        for (int k = 1; i + k < M && j - k >= 0 && B[i + k][j - k] != enemy; k++) {
+        for (int k = 1; i + k < numOfRows && j - k >= 0 && B[i + k][j - k] != enemy; k++) {
             free++; // forward check
             if (B[i + k][j - k] == me) n++; // forward check
         }
         if (free >= K) max = Math.max(max, n);
 
-        return max * 1000 + (this.N / 2) - Math.abs(j - (this.N / 2));
+        return max * 1000 + (this.numOfCols / 2) - Math.abs(j - (this.numOfCols / 2));
     }
 
     private void checktime() throws TimeoutException {
