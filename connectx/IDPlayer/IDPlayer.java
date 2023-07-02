@@ -156,7 +156,7 @@ public class IDPlayer implements CXPlayer {
                     if(bestSavedScore >= beta)
                         break;
                 }
-                System.err.println("Max depth " + depth + " TT Size " + transTable.size() + " Missed " + missed);
+                //System.err.println("Max depth " + depth + " TT Size " + transTable.size() + " Missed " + missed);
             }
         } catch (TimeoutException e) { }
 
@@ -171,11 +171,12 @@ public class IDPlayer implements CXPlayer {
             else
                 return new int[] {((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), -1};
         } else if (depth == 0)
-            //return new int[]{heuristic(board), -1};
-            return new int[]{0, -1};
+            //return new int[]{heuristic(board), -1}; // con euristica
+            //return new int[]{0, -1}; // senza euristica
+            return new int[]{1, -1}; // ottimista
 
         //Integer hash = getHash(board.getMarkedCells());
-        HashEntry saved = checkTransTable(hashKey, board.currentPlayer());
+        HashEntry saved = checkTransTable(hashKey, board.currentPlayer(), depth);
         if(saved != null)
             return new int[]{saved.eval, saved.bestCol};
 
@@ -230,8 +231,17 @@ public class IDPlayer implements CXPlayer {
             }
         }
 
+        //Usare questo se si gioca senza euristica
+        /*
         if(bestScore == Integer.MIN_VALUE || bestScore == Integer.MAX_VALUE)
-            updateTransTable(hashKey, new HashEntry(bestScore, bestCol, board.currentPlayer()));
+            updateTransTable(hashKey, new HashEntry(bestScore, bestCol, board.currentPlayer(), Integer.MAX_VALUE));
+         */
+
+        //Usare questo se si gioca con euristica oppure in modo ottimista
+        if(bestScore == 0 || bestScore == Integer.MIN_VALUE || bestScore == Integer.MAX_VALUE)
+            updateTransTable(hashKey, new HashEntry(bestScore, bestCol, board.currentPlayer(), Integer.MAX_VALUE));
+        //else //commentare per non salvare euristica
+        //    updateTransTable(hashKey, new HashEntry(bestScore, bestCol, board.currentPlayer(), depth));
 
         return new int[]{bestScore, bestCol};
     }
@@ -255,17 +265,15 @@ public class IDPlayer implements CXPlayer {
         return hashKey;
     }
 
-    HashEntry checkTransTable(Long hash, int player)throws TimeoutException {
+    HashEntry checkTransTable(Long hash, int player, int depth)throws TimeoutException {
         checktime();
         HashEntry saved = transTable.get(hash);
-        if(saved != null && saved.player == player){
+        if(saved != null && saved.player == player && saved.depth >= depth){
             transTable.put(hash, saved);
             return saved;
         }
-        else if(saved != null && saved.player != player)
-            missed += 1;
-
-        return null;
+        else
+            return null;
     }
 
     void updateTransTable(Long hash, HashEntry newRes)  throws TimeoutException{
@@ -277,7 +285,8 @@ public class IDPlayer implements CXPlayer {
         transTable.put(hash, newRes);
     }
 
-    private int heuristic(CXBoard board) {
+    private int heuristic(CXBoard board) throws TimeoutException {
+        checktime();
         return isNotColour(board.getBoard(), board.getLastMove().i, board.getLastMove().j);
     }
 
