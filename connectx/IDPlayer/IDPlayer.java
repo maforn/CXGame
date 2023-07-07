@@ -246,7 +246,7 @@ public class IDPlayer implements CXPlayer {
 
         //Usare questo se si gioca con euristica oppure in modo ottimista
         //if(bestScore == 0 || bestScore == Integer.MIN_VALUE || bestScore == Integer.MAX_VALUE)
-        //    updateTransTable(hashKey, new int[]{bestScore, bestCol Integer.MAX_VALUE});
+        //    updateTransTable(hashKey, new int[]{bestScore, bestCol, Integer.MAX_VALUE});
         //else //commentare per non salvare euristica
         //    updateTransTable(hashKey, new int[]{bestScore, bestCol, depth});
 
