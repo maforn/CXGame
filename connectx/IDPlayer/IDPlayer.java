@@ -28,10 +28,7 @@ import java.util.TreeSet;
 import java.util.Random;
 import java.util.concurrent.TimeoutException;
 import java.util.LinkedHashMap;
-
 import java.util.Arrays;
-
-import connectx.HashEntry.HashEntry;
 
 /**
  * Software player only a bit smarter than random.
@@ -41,12 +38,6 @@ import connectx.HashEntry.HashEntry;
  * </p>
  */
 public class IDPlayer implements CXPlayer {
-    int[] moveOrder;
-    long[][][] zobristTable;
-    LinkedHashMap<Long, HashEntry> transTable;
-    int transTableCapacity;
-
-    long hashKey;
 
     private Random rand;
     private CXGameState myWin;
@@ -54,10 +45,22 @@ public class IDPlayer implements CXPlayer {
     private int TIMEOUT;
     private long START;
 
+    // Array containing the column visit order. Priority is assigned to central columns
+    int[] moveOrder;
+    // Table of values used to calculate hash key
+    long[][][] zobristTable;
+    // Transposition table to save evaluation of calculated configurations
+    LinkedHashMap<Long, int[]> transTable;
+    // The max size of the transposition table, which is determined based on board size
+    int transTableCapacity;
+    // Key identifying the current board configuration. Used to save values in transposition table
+    long hashKey;
+
+    // Game settings
     int numOfRows; //rows
     int numOfCols; //cols
-    int K;
-    boolean first;
+    int K; // coins to aligne in order to win
+    boolean first; // whether the agent is the first player or not
     int missed;
 
 
@@ -75,7 +78,6 @@ public class IDPlayer implements CXPlayer {
         this.numOfRows = M;
         this.numOfCols = N;
         this.K = K;
-
         this.first = first;
         missed = 0;
 
@@ -84,6 +86,7 @@ public class IDPlayer implements CXPlayer {
         initTransTable();
     }
 
+    // Save the desired move order in array. Columns closer to the centre of the table are examined first
     private void initMoveOrder(){
         moveOrder = new int[numOfCols];
         for(int i = 0; i < numOfCols; i++){
@@ -94,6 +97,7 @@ public class IDPlayer implements CXPlayer {
         }
     }
 
+    // Initialize the table used for Zobrist hashing and set the hash key to zero
     private void initZobristTable(){
         zobristTable = new long[numOfRows][numOfCols][2];
 
@@ -107,11 +111,15 @@ public class IDPlayer implements CXPlayer {
         hashKey = 0;
     }
 
+    // Initialize the transposition table
     private void initTransTable(){
-        int desiredDepthMemory = 5;
-        //transTableCapacity = (int)Math.pow(N, desiredDepthMemory);
-        transTableCapacity = 20000000;
-        transTable = new LinkedHashMap<Long, HashEntry>(transTableCapacity, 1);
+        int maxCapacity = 20000000; // maximum allowed capacity for the table
+        int desiredMemoryDepth = 8; // parameter to calculate the desired capacity of the table
+
+        int desiredCapacity = (int)Math.pow(numOfCols, desiredMemoryDepth);
+        transTableCapacity = Math.min(desiredCapacity, maxCapacity);
+
+        transTable = new LinkedHashMap<Long, int[]>(transTableCapacity, 1);
     }
 
     /**
@@ -125,15 +133,17 @@ public class IDPlayer implements CXPlayer {
     public int selectColumn(CXBoard B) {
         START = System.currentTimeMillis(); // Save starting time
 
-        CXBoard copyOfBoard = B.copy();
-        hashKey = updateHashKey(copyOfBoard, hashKey);
+        CXBoard copyOfBoard = B.copy(); //save original board
+        hashKey = updateHashKey(copyOfBoard, hashKey); //update hashKey to include opposer move
 
+        // parametres for Iterative Deepening
         int alpha = Integer.MIN_VALUE;
         int beta = Integer.MAX_VALUE;
         int player = B.currentPlayer();
 
         int choice = ID(B, player, alpha, beta, hashKey);
 
+        // update hashKey to include player move
         copyOfBoard.markColumn(choice);
         hashKey = updateHashKey(copyOfBoard, hashKey);
 
@@ -141,9 +151,9 @@ public class IDPlayer implements CXPlayer {
     }
 
     private int ID(CXBoard board, int player, int alpha, int beta, long hashKey) {
-        int bestSavedScore = Integer.MIN_VALUE;
-        int bestSavedCol = board.getAvailableColumns()[0];
-        int freeCells = board.numOfFreeCells();
+        int bestSavedScore = Integer.MIN_VALUE; // initialize bestScore to loss
+        int bestSavedCol = board.getAvailableColumns()[0]; // save random column
+        int freeCells = board.numOfFreeCells(); //maximum depth that can be searched
 
         try{
             for (int depth = 1; depth <= freeCells; depth++) {
@@ -156,7 +166,7 @@ public class IDPlayer implements CXPlayer {
                     if(bestSavedScore >= beta)
                         break;
                 }
-                //System.err.println("Max depth " + depth + " TT Size " + transTable.size() + " Missed " + missed);
+                System.err.println("Max depth " + depth + " TT Size " + transTable.size() + " Missed " + missed);
             }
         } catch (TimeoutException e) { }
 
@@ -172,27 +182,26 @@ public class IDPlayer implements CXPlayer {
                 return new int[] {((board.gameState() == myWin) ? Integer.MAX_VALUE : Integer.MIN_VALUE), -1};
         } else if (depth == 0)
             //return new int[]{heuristic(board), -1}; // con euristica
-            //return new int[]{0, -1}; // senza euristica
-            return new int[]{1, -1}; // ottimista
+            return new int[]{0, -1}; // senza euristica
+            //return new int[]{1, -1}; // ottimista
 
         //Integer hash = getHash(board.getMarkedCells());
-        HashEntry saved = checkTransTable(hashKey, board.currentPlayer(), depth);
+        int[] saved = checkTransTable(hashKey, depth);
         if(saved != null)
-            return new int[]{saved.eval, saved.bestCol};
+            return new int[]{saved[0], saved[1]};
 
         int bestScore, bestCol = -1, colsToCheck;
 
         //symmetry check
         boolean isSymmetric = isSymmetric(board);
 
-        // If it's the maximizing player's turn, initialize the best score to the smallest possible value
+        // If it's the player's turn, initialize the best score to the smallest possible value
         if (board.currentPlayer() == player) {
             bestScore = Integer.MIN_VALUE;
             for (int i = 0; i < numOfCols; i = isSymmetric ? i+2 : i+1) {
                 int col = moveOrder[i];
                 if(board.fullColumn(col))
                     continue;
-                //System.err.println(col);
                 checktime();
                 board.markColumn(col);
                 hashKey = updateHashKey(board, hashKey);
@@ -208,7 +217,7 @@ public class IDPlayer implements CXPlayer {
                     break; // Beta cutoff
             }
         }
-        // If it's the minimizing player's turn, initialize the best score to the largest possible value
+        // If it's the opposing player's turn, initialize the best score to the largest possible value
         else {
             bestScore = Integer.MAX_VALUE;
             for (int i = 0; i < numOfCols; i = isSymmetric ? i+2 : i+1) {
@@ -232,20 +241,19 @@ public class IDPlayer implements CXPlayer {
         }
 
         //Usare questo se si gioca senza euristica
-        /*
         if(bestScore == Integer.MIN_VALUE || bestScore == Integer.MAX_VALUE)
-            updateTransTable(hashKey, new HashEntry(bestScore, bestCol, board.currentPlayer(), Integer.MAX_VALUE));
-         */
+            updateTransTable(hashKey, new int[]{bestScore, bestCol, Integer.MAX_VALUE});
 
         //Usare questo se si gioca con euristica oppure in modo ottimista
-        if(bestScore == 0 || bestScore == Integer.MIN_VALUE || bestScore == Integer.MAX_VALUE)
-            updateTransTable(hashKey, new HashEntry(bestScore, bestCol, board.currentPlayer(), Integer.MAX_VALUE));
+        //if(bestScore == 0 || bestScore == Integer.MIN_VALUE || bestScore == Integer.MAX_VALUE)
+        //    updateTransTable(hashKey, new int[]{bestScore, bestCol Integer.MAX_VALUE});
         //else //commentare per non salvare euristica
-        //    updateTransTable(hashKey, new HashEntry(bestScore, bestCol, board.currentPlayer(), depth));
+        //    updateTransTable(hashKey, new int[]{bestScore, bestCol, depth});
 
         return new int[]{bestScore, bestCol};
     }
 
+    // Returns true if the board configuration is symmetric
     boolean isSymmetric(CXBoard board)throws TimeoutException{
         checktime();
         CXCell[] MC = board.getMarkedCells();
@@ -256,6 +264,7 @@ public class IDPlayer implements CXPlayer {
         return true;
     }
 
+    // Update hashKey to include last move. Returns the updated hashKey
     long updateHashKey(CXBoard board, long hashKey){
         CXCell lastMove = board.getLastMove();
         if(lastMove != null) {
@@ -265,23 +274,30 @@ public class IDPlayer implements CXPlayer {
         return hashKey;
     }
 
-    HashEntry checkTransTable(Long hash, int player, int depth)throws TimeoutException {
+    // Checks if the transposition table contains an entry with hash as key. If so, it makes it the newest element of the
+    // table and it returns it. Otherwise, it returns null.
+    int[] checkTransTable(Long hash, int depth)throws TimeoutException {
         checktime();
-        HashEntry saved = transTable.get(hash);
-        if(saved != null && saved.player == player && saved.depth >= depth){
-            transTable.put(hash, saved);
+        int[] saved = transTable.get(hash);
+        if(saved != null && saved[2] >= depth){
+            transTable.put(hash, saved); // make the element the newest in the table
             return saved;
         }
         else
             return null;
     }
 
-    void updateTransTable(Long hash, HashEntry newRes)  throws TimeoutException{
+    // Add new data to the transposition table. If the table capacity exceeds the maximum allowed,
+    // the oldest entry in the table is removed.
+    void updateTransTable(Long hash, int[] newRes)  throws TimeoutException{
         checktime();
+
+        // remove oldest entry if necessary
         if (transTable.size() >= transTableCapacity) {
             Long firstKey = transTable.keySet().iterator().next();
             transTable.remove(firstKey);
         }
+
         transTable.put(hash, newRes);
     }
 
