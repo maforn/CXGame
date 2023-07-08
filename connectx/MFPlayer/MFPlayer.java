@@ -117,7 +117,11 @@ public class MFPlayer implements CXPlayer {
 		int desiredSize = desiredCapacity * 4 / 3; // the necessary size to have desiredCapacity entries and load factor <= 0.75
 
 		transTableSize = Math.min(desiredSize, maxTTSize); // size of the table
-		transTable = new LinkedHashMap<Long, int[]>(transTableSize, 1); //load factor set to 1 because no rehashing will be done
+
+		// load factor set to 1 because
+		// 1) no rehashing will be done
+		// 2) the load factor won't be controlled the table itself
+		transTable = new LinkedHashMap<Long, int[]>(transTableSize, 1);
 	}
 
 	/**
@@ -157,12 +161,12 @@ public class MFPlayer implements CXPlayer {
 		try{
 			for (int depth = 1; depth <= freeCells; depth++) {
 				int[] eval = alphaBeta(board, depth, player, alpha, beta, hashKey);
-				if(eval[0] == Integer.MIN_VALUE)
-					break;
+				if(eval[0] == Integer.MIN_VALUE) // if inevitable loss is discovered,
+					break; // maintain previous best choice so to positicipate the loss
 				else{
 					bestSavedScore = eval[0];
 					bestSavedCol = eval[1];
-					if(bestSavedScore >= beta)
+					if(bestSavedScore >= beta) // if winning situation is discovered, break
 						break;
 				}
 			}
