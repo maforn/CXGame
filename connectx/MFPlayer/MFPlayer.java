@@ -113,11 +113,15 @@ public class MFPlayer implements CXPlayer {
 	// Initialize the transposition table
 	private void initTransTable(){
 		int desiredMemoryDepth = 8; // parameter to calculate the desired capacity of the table
-		int desiredCapacity = (int)Math.pow(numOfCols, desiredMemoryDepth); // how many entries we'd like to have at most in the table
-		int desiredSize = desiredCapacity * 4 / 3; // the necessary size to have desiredCapacity entries and load factor <= 0.75
 
-		transTableSize = Math.min(desiredSize, maxTTSize); // size of the table
+		if(Math.round(Math.pow(maxTTSize * 3 / 4, 1.0 / 8.0)) < numOfCols)
+			transTableSize = maxTTSize;
+		else{
+			int desiredCapacity = (int)Math.pow(numOfCols, desiredMemoryDepth); // how many entries we'd like to have at most in the table
+			transTableSize = desiredCapacity * 4 / 3; // the necessary size to have desiredCapacity entries and load factor <= 0.75
+		}
 
+		System.err.println(transTableSize);
 		// load factor set to 1 because
 		// 1) no rehashing will be done
 		// 2) the load factor won't be controlled the table itself
