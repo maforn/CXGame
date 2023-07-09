@@ -121,7 +121,6 @@ public class MFPlayer implements CXPlayer {
 			transTableSize = desiredCapacity * 4 / 3; // the necessary size to have desiredCapacity entries and load factor <= 0.75
 		}
 
-		System.err.println(transTableSize);
 		// load factor set to 1 because
 		// 1) no rehashing will be done
 		// 2) the load factor won't be controlled the table itself
