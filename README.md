@@ -21,7 +21,7 @@ The computational cost of the heuristic limits the number of configurations the 
 ### Playing
 - **Human vs Computer**:  In the project directory run:
 
-  	java -cp . connectx.CXGame 6 7 4 connectx.IDPlayer.IDPlayer
+  	  java -cp . connectx.CXGame 6 7 4 connectx.IDPlayer.IDPlayer
 
 This will run a game against IDPlayer in a 6x7 matrix where the players have to align 4 pieces to win.
 
