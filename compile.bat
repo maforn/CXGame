@@ -1,1 +1,1 @@
-javac connectx/CX*.java connectx/L0/L0.java connectx/L1/L1.java connectx/MFPlayer/MFPlayer.java connectx/MinMaxPlayer/MinMaxPlayer.java connectx/IDPlayer/IDPlayer.java connectx/HashEntry/HashEntry.java connectx/IDPlayerHeur/IDPlayerHeur.java
+javac connectx/CX*.java connectx/L0/L0.java connectx/L1/L1.java connectx/MFPlayer/MFPlayer.java connectx/MinMaxPlayer/MinMaxPlayer.java connectx/IDPlayer/IDPlayer.java connectx/IDPlayerHeur/IDPlayerHeur.java
