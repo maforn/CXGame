@@ -27,7 +27,7 @@ This will run a game against IDPlayer in a 6x7 matrix where the players have to 
 
 - **Computer vs Computer**: In the project directory run:
 
-    	java -cp . connectx.CXGame 6 7 4 connectx.IDPlayer.IDPlayer connectx.L1.L1
+      java -cp . connectx.CXGame 6 7 4 connectx.IDPlayer.IDPlayer connectx.L1.L1
 
 This will run a game between IDPlayer and L1 in a 6x7 matrix where the players have to align 4 pieces to win.
 
