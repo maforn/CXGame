@@ -31,8 +31,6 @@ import java.util.HashMap;
 
 import java.util.Arrays;
 
-import connectx.HashEntry.HashEntry;
-
 /**
  * Software player only a bit smarter than random.
  * <p>
